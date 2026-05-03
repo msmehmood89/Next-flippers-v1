@@ -1,0 +1,175 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the platform (Seller, Buyer, or Admin).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the user." },
+        "username": { "type": "string", "description": "Unique branded username." },
+        "email": { "type": "string", "format": "email", "description": "Email address." },
+        "whatsappNumber": { "type": "string", "description": "WhatsApp contact number." },
+        "role": { "type": "string", "enum": ["seller", "buyer", "admin", "freelancer"], "description": "User role." },
+        "status": { "type": "string", "enum": ["active", "banned", "pending"], "description": "Account status." },
+        "address": { "type": "string", "description": "Physical address." },
+        "mainBusiness": { "type": "string", "description": "Primary business focus." },
+        "monthlyRevenue": { "type": "string", "description": "Estimated monthly revenue." },
+        "bio": { "type": "string", "description": "User biography." },
+        "experience": { "type": "string", "description": "Professional experience details." },
+        "lookingFor": { "type": "string", "description": "What the user is searching for." },
+        "skills": { "type": "array", "items": { "type": "string" }, "description": "List of skills." },
+        "fullTimeJob": { "type": "string", "description": "Full-time occupation." },
+        "partTimeJob": { "type": "string", "description": "Part-time occupation." },
+        "privacySettings": { "type": "object", "description": "Privacy controls." },
+        "favorites": { "type": "array", "items": { "type": "string" }, "description": "IDs of favorited items." },
+        "lastActiveAt": { "type": "string", "format": "date-time", "description": "Last activity timestamp." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp." }
+      },
+      "required": ["name", "username", "email", "whatsappNumber", "role", "status"]
+    },
+    "Listing": {
+      "title": "Listing",
+      "description": "A website listing for sale.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of the seller." },
+        "title": { "type": "string", "description": "Title of the listing." },
+        "url": { "type": "string", "description": "Website URL." },
+        "description": { "type": "string", "description": "Full description of the website." },
+        "category": { "type": "string", "description": "Category/niche name." },
+        "platform": { "type": "string", "description": "Platform used (e.g., WordPress)." },
+        "monthlyRevenue": { "type": "number", "description": "Monthly revenue in USD." },
+        "monthlyProfit": { "type": "number", "description": "Monthly profit in USD." },
+        "monthlyTraffic": { "type": "integer", "description": "Monthly traffic in visitors." },
+        "siteAge": { "type": "integer", "description": "Age of the site in years." },
+        "askingPrice": { "type": "number", "description": "Asking price in USD." },
+        "includedAssets": { "type": "array", "items": { "type": "string" }, "description": "What's included in the sale." },
+        "images": { "type": "array", "items": { "type": "string" }, "description": "Array of image URLs." },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "sold", "featured"], "description": "Listing status." },
+        "views": { "type": "integer", "description": "Number of views." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Listing creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Listing update timestamp." }
+      },
+      "required": ["userId", "title", "url", "description", "category", "askingPrice", "status"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "A niche or category for listings.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the category." },
+        "slug": { "type": "string", "description": "URL-friendly slug." },
+        "icon": { "type": "string", "description": "Icon name." }
+      },
+      "required": ["name", "slug"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A chat thread between a buyer and a seller for a listing.",
+      "type": "object",
+      "properties": {
+        "listingId": { "type": "string", "description": "ID of the listing." },
+        "buyerId": { "type": "string", "description": "ID of the buyer." },
+        "sellerId": { "type": "string", "description": "ID of the seller." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Chat creation timestamp." }
+      },
+      "required": ["listingId", "buyerId", "sellerId"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message in a chat thread.",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string", "description": "ID of the chat thread." },
+        "senderId": { "type": "string", "description": "ID of the sender." },
+        "senderUsername": { "type": "string", "description": "Username of the sender." },
+        "message": { "type": "string", "description": "The message content." },
+        "isRead": { "type": "boolean", "description": "Whether the message has been read." },
+        "isEdited": { "type": "boolean", "description": "Whether the message was edited." },
+        "isDeleted": { "type": "boolean", "description": "Whether the message was deleted." },
+        "mediaUrl": { "type": "string", "description": "URL of attached photo or video." },
+        "mediaType": { "type": "string", "enum": ["image", "video"], "description": "Type of attached media." },
+        "replyTo": { "type": "object", "description": "Reference to a replied message." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Message timestamp." }
+      },
+      "required": ["chatId", "senderId", "message", "isRead"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A transaction for a listing.",
+      "type": "object",
+      "properties": {
+        "listingId": { "type": "string", "description": "ID of the listing." },
+        "buyerId": { "type": "string", "description": "ID of the buyer." },
+        "sellerId": { "type": "string", "description": "ID of the seller." },
+        "salePrice": { "type": "number", "description": "Final sale price." },
+        "commissionAmount": { "type": "number", "description": "Platform commission." },
+        "totalPaid": { "type": "number", "description": "Total amount paid by buyer." },
+        "paymentMethod": { "type": "string", "enum": ["bank", "binance", "crypto", "wallet"], "description": "Payment method used." },
+        "paymentProofImage": { "type": "string", "description": "URL of the payment proof image." },
+        "dealStatus": { "type": "string", "enum": ["payment_pending", "payment_secured", "in_escrow", "asset_transferred", "completed", "disputed", "refunded"], "description": "Step-by-step deal status." },
+        "status": { "type": "string", "enum": ["pending", "verified", "in_progress", "completed", "refunded", "disputed"], "description": "General transaction status." },
+        "adminNotes": { "type": "string", "description": "Internal admin notes." },
+        "sellerPaid": { "type": "boolean", "description": "Whether the seller has been paid." },
+        "sellerPaidAt": { "type": "string", "format": "date-time", "description": "When the seller was paid." },
+        "rating": { "type": "number", "description": "Rating given by the buyer (1-5)." },
+        "ratingComment": { "type": "string", "description": "Comment provided by the buyer with the rating." },
+        "cancelReason": { "type": "string", "description": "Reason given for cancellation." },
+        "cancelledBy": { "type": "string", "description": "UID of the user who cancelled the order." },
+        "cancelledAt": { "type": "string", "format": "date-time", "description": "When the order was cancelled." },
+        "workProofImage": { "type": "string", "description": "URL of the work proof image uploaded by the seller." },
+        "workProofNotes": { "type": "string", "description": "Notes provided by the seller as proof of work completion." },
+        "completedAt": { "type": "string", "format": "date-time", "description": "Completion timestamp." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Transaction creation timestamp." }
+      },
+      "required": ["listingId", "buyerId", "sellerId", "salePrice", "commissionAmount", "totalPaid", "status"]
+    },
+    "Gig": {
+      "title": "Gig",
+      "description": "A freelance service offering.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of the freelancer." },
+        "userName": { "type": "string", "description": "Name of the freelancer." },
+        "title": { "type": "string", "description": "Title of the service." },
+        "description": { "type": "string", "description": "Full description of the service." },
+        "category": { "type": "string", "description": "Service category." },
+        "price": { "type": "number", "description": "Starting price in USD." },
+        "deliveryTime": { "type": "string", "description": "Estimated delivery time." },
+        "images": { "type": "array", "items": { "type": "string" }, "description": "Portfolio images." },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "active", "paused"], "description": "Gig status." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp." }
+      },
+      "required": ["userId", "title", "description", "category", "price", "status"]
+    },
+    "CommunityMessage": {
+      "title": "CommunityMessage",
+      "description": "A message in the global community chat.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string", "description": "ID of the sender." },
+        "senderName": { "type": "string", "description": "Name of the sender." },
+        "senderUsername": { "type": "string", "description": "Username of the sender." },
+        "message": { "type": "string", "description": "The message content." },
+        "isEdited": { "type": "boolean", "description": "Whether the message was edited." },
+        "isDeleted": { "type": "boolean", "description": "Whether the message was deleted." },
+        "mediaUrl": { "type": "string", "description": "URL of attached photo or video." },
+        "mediaType": { "type": "string", "enum": ["image", "video"], "description": "Type of attached media." },
+        "replyTo": { "type": "object", "description": "Reference to a replied message." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Message timestamp." }
+      },
+      "required": ["senderId", "senderName", "senderUsername", "message"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles." },
+    "/listings/{listingId}": { "schema": "Listing", "description": "Website listings." },
+    "/categories/{categoryId}": { "schema": "Category", "description": "Listing categories." },
+    "/chats/{chatId}": { "schema": "Chat", "description": "Chat threads." },
+    "/chats/{chatId}/messages/{messageId}": { "schema": "Message", "description": "Messages within a chat." },
+    "/transactions/{transactionId}": { "schema": "Transaction", "description": "Escrow transactions." },
+    "/gigs/{gigId}": { "schema": "Gig", "description": "Freelance service gigs." },
+    "/community_messages/{messageId}": { "schema": "CommunityMessage", "description": "Global community chat messages." }
+  }
+}

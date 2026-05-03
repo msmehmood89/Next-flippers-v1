@@ -1,0 +1,249 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (auth.uid)
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - username: string (required, 3-20 chars, unique)
+    //   - email: string (required, email format)
+    //   - whatsappNumber: string (required, 1-20 chars)
+    //   - role: string (required, enum: seller, buyer, admin)
+    //   - status: string (required, enum: active, banned, pending)
+    //   - lastActiveAt: timestamp (optional)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: listings
+    // Document ID: listingId
+    // Fields:
+    //   - userId: string (required, owner UID)
+    //   - title: string (required, 1-100 chars)
+    //   - url: string (required, valid URL)
+    //   - description: string (required, 1-5000 chars)
+    //   - category: string (required)
+    //   - askingPrice: number (required, positive)
+    //   - status: string (required, enum: pending, approved, rejected, sold, featured)
+    //   - views: number (required, default 0)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: chats
+    // Document ID: chatId
+    // Fields:
+    //   - listingId: string (required)
+    //   - buyerId: string (required)
+    //   - sellerId: string (required)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: messages
+    // Document ID: messageId (subcollection of chats)
+    // Fields:
+    //   - chatId: string (required)
+    //   - senderId: string (required)
+    //   - message: string (required, 1-1000 chars)
+    //   - isRead: bool (required)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: transactions
+    // Document ID: transactionId
+    // Fields:
+    //   - listingId: string (required)
+    //   - buyerId: string (required)
+    //   - sellerId: string (required)
+    //   - salePrice: number (required)
+    //   - status: string (required, enum: pending, verified, in_progress, completed, refunded, disputed)
+    //
+    // Collection: notifications
+    // Document ID: notificationId
+    // Fields:
+    //   - userId: string (required, recipient UID)
+    //   - title: string (required)
+    //   - message: string (required)
+    //   - type: string (required, enum: listing_approved, listing_rejected, new_message, system)
+    //   - link: string (optional)
+    //   - isRead: bool (required)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          request.auth.token.email == "ms.mehmood749@gmail.com" ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        );
+    }
+
+    function isParticipant(chatId) {
+      let chat = get(/databases/$(database)/documents/chats/$(chatId)).data;
+      return isAuthenticated() && (chat.buyerId == request.auth.uid || chat.sellerId == request.auth.uid || isAdmin());
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUsername(username) {
+      return username is string && username.matches("^[a-z0-9_]{3,20}$");
+    }
+
+    function isValidUser(data) {
+      return hasRequiredFields(['name', 'email', 'whatsappNumber', 'country', 'gender', 'role', 'status', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('username' in data) || isValidUsername(data.username)) &&
+             isValidEmail(data.email) &&
+             data.whatsappNumber is string && data.whatsappNumber.size() <= 30 &&
+             data.country is string &&
+             data.gender in ['male', 'female'] &&
+             data.role in ['seller', 'buyer', 'admin', 'freelancer'] &&
+             data.status in ['active', 'inactive', 'banned', 'pending'] &&
+             (!('rating' in data) || data.rating is number) &&
+             (!('totalReviews' in data) || data.totalReviews is number) &&
+             (!('ordersCompleted' in data) || data.ordersCompleted is number) &&
+             (!('websitesBought' in data) || data.websitesBought is number) &&
+             (!('websitesSold' in data) || data.websitesSold is number) &&
+             (!('totalSales' in data) || data.totalSales is number) &&
+             (!('totalPurchases' in data) || data.totalPurchases is number) &&
+             (!('responseTime' in data) || data.responseTime is string);
+    }
+
+    function isValidListing(data) {
+      return hasRequiredFields(['userId', 'title', 'url', 'description', 'category', 'askingPrice', 'status', 'createdAt']) &&
+             data.userId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             isValidUrl(data.url) &&
+             data.description is string && data.description.size() > 0 && data.description.size() <= 5000 &&
+             data.category is string &&
+             data.askingPrice is number && data.askingPrice >= 0 &&
+             data.status in ['pending', 'approved', 'rejected', 'sold', 'featured'];
+    }
+
+    function isValidGig(data) {
+      return hasRequiredFields(['userId', 'userName', 'title', 'description', 'category', 'price', 'status', 'createdAt']) &&
+             data.userId is string &&
+             data.userName is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.description is string && data.description.size() > 0 && data.description.size() <= 5000 &&
+             data.category is string &&
+             data.price is number && data.price >= 0 &&
+             data.status in ['pending', 'approved', 'rejected', 'active', 'paused'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if true; // Public profiles for marketplace
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role != 'admin';
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && 
+                    (isAdmin() || (request.resource.data.role == resource.data.role && request.resource.data.status == resource.data.status));
+    }
+
+    match /listings/{listingId} {
+      allow read: if true; 
+      allow create: if isAuthenticated() && isValidListing(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if (isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin()) &&
+                    (isAdmin() || (request.resource.data.status == resource.data.status || (resource.data.status == 'approved' && request.resource.data.status == 'sold')))) ||
+                    (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']) && 
+                     request.resource.data.views == resource.data.get('views', 0) + 1);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /chats/{chatId}/messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        (request.resource.data.senderId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasAny(['message', 'isEdited', 'isDeleted'])) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']))
+      );
+      allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || request.auth.token.email == "ms.mehmood749@gmail.com");
+      allow create: if isAuthenticated() && (request.resource.data.buyerId == request.auth.uid || request.resource.data.sellerId == request.auth.uid || request.auth.token.email == "ms.mehmood749@gmail.com");
+      allow update: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || request.auth.token.email == "ms.mehmood749@gmail.com");
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.email == "ms.mehmood749@gmail.com");
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.email == "ms.mehmood749@gmail.com");
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.email == "ms.mehmood749@gmail.com");
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.buyerId == request.auth.uid || request.resource.data.sellerId == request.auth.uid);
+      allow update: if isAdmin();
+    }
+    
+    match /gigs/{gigId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidGig(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin()) &&
+                    isValidGig(request.resource.data);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    match /community_messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        (resource.data.senderId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasAny(['message', 'isEdited', 'isDeleted'])) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
+    }
+
+    match /support_tickets/{ticketId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if true;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

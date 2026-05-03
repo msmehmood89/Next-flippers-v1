@@ -1,0 +1,555 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../App';
+import { 
+  LifeBuoy, Send, MessageSquare, 
+  Clock, ShieldCheck, AlertCircle,
+  ChevronRight, Mail, Phone, HelpCircle,
+  History, X, CheckCircle2, MessageCircle
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { cn } from '../lib/utils';
+
+export default function Support() {
+  const { user, profile } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [userReply, setUserReply] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
+  const [formData, setFormData] = useState({
+    subject: '',
+    category: 'general',
+    message: '',
+    email: user?.email || ''
+  });
+
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'support_tickets'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setTickets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.message || !formData.subject) return;
+
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'support_tickets'), {
+        ...formData,
+        userId: user?.uid || 'anonymous',
+        userName: profile?.name || 'Anonymous',
+        status: 'open',
+        priority: 'medium',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      setSuccess(true);
+      setFormData({ ...formData, subject: '', message: '' });
+    } catch (error) {
+      console.error('Error submitting ticket:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUserReply = async () => {
+    if (!selectedTicket || !userReply.trim()) return;
+
+    setIsReplying(true);
+    try {
+      const ticketRef = doc(db, 'support_tickets', selectedTicket.id);
+      const newReply = {
+        message: userReply,
+        isAdmin: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedReplies = [...(selectedTicket.replies || []), newReply];
+      
+      await updateDoc(ticketRef, { 
+        replies: updatedReplies,
+        status: 'open', // Reopen or keep open if user replies
+        updatedAt: serverTimestamp()
+      });
+
+      setSelectedTicket(prev => ({ ...prev, replies: updatedReplies, status: 'open' }));
+      setUserReply('');
+    } catch (error) {
+      console.error('Error replying to ticket:', error);
+    } finally {
+      setIsReplying(false);
+    }
+  };
+
+  const faqs = [
+    { q: "How do I buy a website?", a: "Browse the marketplace, find a site you like, and click 'Buy Now'. Follow the payment instructions to start the secure escrow process." },
+    { q: "Is my payment secure?", a: "Yes, we use a secure escrow system. Funds are only released to the seller once you have successfully received the website assets." },
+    { q: "How long does transfer take?", a: "Most transfers are completed within 24-48 hours, depending on the domain registrar and hosting provider." },
+    { q: "Can I sell my own gig?", a: "Absolutely! Switch to a 'Seller' profile in your settings and click 'Post Gig' to start offering your services." }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 pt-16 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full text-xs font-black uppercase tracking-widest mb-6"
+          >
+            <LifeBuoy className="w-4 h-4" />
+            Help Center
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-5xl md:text-6xl font-black text-gray-900 tracking-tight mb-6"
+          >
+            How can we <span className="text-indigo-600">help?</span>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-xl text-gray-500 max-w-2xl mx-auto font-medium"
+          >
+            Our support team is available 24/7 to help you with any issues or questions you might have.
+          </motion.p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          {/* Left Column: Form & Tickets */}
+          <div className="lg:col-span-2 space-y-12">
+            {/* Contact Form */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-xl shadow-indigo-100/50 border border-gray-100"
+            >
+              <div className="flex items-center gap-4 mb-10">
+                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                  <MessageSquare className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-gray-900">Open a Ticket</h2>
+                  <p className="text-sm text-gray-500 font-bold">We'll get back to you within 2 hours.</p>
+                </div>
+              </div>
+
+              {success ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-green-50 border border-green-100 rounded-3xl p-10 text-center"
+                >
+                  <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center text-white mx-auto mb-6 shadow-lg shadow-green-200">
+                    <ShieldCheck className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-900 mb-2">Ticket Submitted!</h3>
+                  <p className="text-gray-600 font-medium mb-8">Your support ticket has been created successfully. Check your dashboard for updates.</p>
+                  <button
+                    onClick={() => setSuccess(false)}
+                    className="bg-gray-900 text-white px-8 py-4 rounded-2xl font-black text-sm hover:bg-gray-800 transition-all"
+                  >
+                    Send Another Message
+                  </button>
+                </motion.div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Your Email</label>
+                      <input
+                        type="email"
+                        required
+                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all"
+                        placeholder="email@example.com"
+                        value={formData.email}
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Category</label>
+                      <select
+                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all appearance-none"
+                        value={formData.category}
+                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                      >
+                        <option value="general">General Inquiry</option>
+                        <option value="billing">Billing & Payments</option>
+                        <option value="technical">Technical Issue</option>
+                        <option value="report">Report a User</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Subject</label>
+                    <input
+                      type="text"
+                      required
+                      className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all"
+                      placeholder="What can we help you with?"
+                      value={formData.subject}
+                      onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Message</label>
+                    <textarea
+                      required
+                      rows={6}
+                      className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all resize-none"
+                      placeholder="Describe your issue in detail..."
+                      value={formData.message}
+                      onChange={e => setFormData({ ...formData, message: e.target.value })}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5" />
+                        Submit Ticket
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </motion.div>
+
+            {/* My Tickets Section */}
+            {user && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-xl shadow-indigo-100/50 border border-gray-100"
+              >
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
+                    <History className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-gray-900">My Tickets</h2>
+                    <p className="text-sm text-gray-500 font-bold">Track your support history.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {tickets.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+                      <HelpCircle className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                      <p className="text-sm text-gray-400 font-bold">You haven't submitted any tickets yet.</p>
+                    </div>
+                  ) : (
+                    tickets.map(ticket => (
+                      <button
+                        key={ticket.id}
+                        onClick={() => setSelectedTicket(ticket)}
+                        className="w-full flex items-center justify-between p-6 bg-gray-50 rounded-3xl border border-gray-100 hover:bg-indigo-50 hover:border-indigo-100 transition-all group text-left"
+                      >
+                        <div className="flex items-center gap-6">
+                          <div className={cn(
+                            "w-3 h-3 rounded-full",
+                            ticket.status === 'open' ? "bg-amber-500" : 
+                            ticket.status === 'in-progress' ? "bg-blue-500" :
+                            "bg-green-500"
+                          )} />
+                          <div>
+                            <div className="text-sm font-black text-gray-900 group-hover:text-indigo-600 transition-colors">{ticket.subject}</div>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{ticket.category}</span>
+                              <span className="text-[10px] font-black text-gray-300">•</span>
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{ticket.createdAt?.toDate().toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {ticket.replies?.length > 0 && (
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-100 text-indigo-600 rounded-full">
+                              <MessageCircle className="w-3 h-3" />
+                              <span className="text-[10px] font-black">{ticket.replies.length}</span>
+                            </div>
+                          )}
+                          <div className={cn(
+                            "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest",
+                            ticket.status === 'open' ? "bg-amber-100 text-amber-600" : 
+                            ticket.status === 'in-progress' ? "bg-blue-100 text-blue-600" :
+                            "bg-green-100 text-green-600"
+                          )}>
+                            {ticket.status}
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-600 transition-all" />
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Sidebar Info */}
+          <div className="space-y-8">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-indigo-600 rounded-[2.5rem] p-8 text-white shadow-xl shadow-indigo-200"
+            >
+              <h3 className="text-xl font-black mb-6">Quick Contact</h3>
+              <div className="space-y-6">
+                <a 
+                  href="https://wa.me/923057341215" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="flex items-center gap-4 p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all group"
+                >
+                  <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
+                    <MessageCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-widest opacity-60">WhatsApp Support</div>
+                    <div className="text-sm font-bold">+92 305 7341215</div>
+                  </div>
+                </a>
+                <div className="flex items-center gap-4 px-4">
+                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Email Us</div>
+                    <div className="text-sm font-bold">support@flippersclub.com</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Response Time</div>
+                    <div className="text-sm font-bold">Under 2 Hours</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Status</div>
+                    <div className="text-sm font-bold flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      All Systems Operational
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-xl shadow-gray-100"
+            >
+              <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-indigo-600" />
+                Common FAQs
+              </h3>
+              <div className="space-y-4">
+                {faqs.map((faq, i) => (
+                  <div key={i} className="group cursor-pointer">
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl group-hover:bg-indigo-50 transition-colors">
+                      <span className="text-xs font-bold text-gray-700 group-hover:text-indigo-600">{faq.q}</span>
+                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-600" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-amber-50 rounded-[2.5rem] p-8 border border-amber-100"
+            >
+              <div className="flex items-center gap-3 text-amber-600 mb-4">
+                <AlertCircle className="w-5 h-5" />
+                <span className="text-sm font-black uppercase tracking-widest">Safety Tip</span>
+              </div>
+              <p className="text-xs text-amber-700 font-bold leading-relaxed">
+                Never share your password or payment details outside of our secure platform. Next Flippers staff will never ask for your login credentials.
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+
+      {/* Ticket Details Modal */}
+      <AnimatePresence>
+        {selectedTicket && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedTicket(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "w-3 h-3 rounded-full",
+                    selectedTicket.status === 'open' ? "bg-amber-500" : 
+                    selectedTicket.status === 'in-progress' ? "bg-blue-500" :
+                    "bg-green-500"
+                  )} />
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900">{selectedTicket.subject}</h3>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedTicket.category}</span>
+                      <span className="text-[10px] font-black text-gray-300">•</span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ID: {selectedTicket.id.slice(0, 8)}</span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedTicket(null)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-grow overflow-y-auto p-8 space-y-8">
+                {/* Original Message */}
+                <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Your Message</span>
+                    <span className="text-[10px] font-bold text-gray-400">{selectedTicket.createdAt?.toDate().toLocaleString()}</span>
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedTicket.message}</p>
+                </div>
+
+                {/* Replies */}
+                <div className="space-y-6">
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Conversation</h4>
+                  {selectedTicket.replies && selectedTicket.replies.length > 0 ? (
+                    selectedTicket.replies.map((reply: any, i: number) => (
+                      <div 
+                        key={i} 
+                        className={cn(
+                          "rounded-3xl p-6 border transition-all",
+                          reply.isAdmin 
+                            ? "bg-indigo-50 border-indigo-100 ml-8" 
+                            : "bg-gray-50 border-gray-100 mr-8"
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <span className={cn(
+                            "text-[10px] font-black uppercase tracking-widest",
+                            reply.isAdmin ? "text-indigo-600" : "text-gray-500"
+                          )}>
+                            {reply.isAdmin ? "Support Agent" : "You"}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-400">
+                            {reply.createdAt?.toDate ? reply.createdAt.toDate().toLocaleString() : new Date(reply.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{reply.message}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+                      <Clock className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                      <p className="text-[11px] text-gray-400 font-bold">Waiting for support response...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              {selectedTicket.status !== 'closed' ? (
+                <div className="p-8 border-t border-gray-100 bg-gray-50/50">
+                  <div className="space-y-4">
+                    <textarea
+                      rows={3}
+                      placeholder="Type your reply here..."
+                      className="w-full px-6 py-4 bg-white border border-gray-200 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all resize-none"
+                      value={userReply}
+                      onChange={(e) => setUserReply(e.target.value)}
+                    />
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={async () => {
+                          if (window.confirm('Are you sure you want to close this ticket?')) {
+                            await updateDoc(doc(db, 'support_tickets', selectedTicket.id), { status: 'closed' });
+                            setSelectedTicket({ ...selectedTicket, status: 'closed' });
+                          }
+                        }}
+                        className="px-6 py-3 bg-white text-red-600 border border-red-100 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-red-50 transition-all flex items-center gap-2"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Close Ticket
+                      </button>
+                      <button
+                        onClick={handleUserReply}
+                        disabled={isReplying || !userReply.trim()}
+                        className="px-8 py-3 bg-indigo-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {isReplying ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Send Reply
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-8 border-t border-gray-100 bg-gray-50/50 text-center">
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest">This ticket is closed</p>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

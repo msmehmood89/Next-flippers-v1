@@ -1,0 +1,675 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { collection, query, where, limit, getDocs, orderBy } from 'firebase/firestore';
+import { db } from '../firebase';
+import { Listing } from '../types';
+import { 
+  Search, TrendingUp, Shield, Zap, 
+  ArrowRight, Globe, BarChart3, Users, 
+  CheckCircle2, DollarSign, Clock, MessageSquare,
+  ChevronRight, Star, Award, Sparkles, PlusCircle, Briefcase, FileText, Video, Gamepad2, Music2, SlidersHorizontal,
+  Instagram, Facebook, Twitter, AtSign, Package, Smartphone
+} from 'lucide-react';
+import { formatCurrency, cn } from '../lib/utils';
+import { motion, AnimatePresence } from 'motion/react';
+import FavoriteButton from '../components/FavoriteButton';
+
+export default function Home() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [featuredListings, setFeaturedListings] = useState<Listing[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const potentialSlides = [
+    {
+      title: 'Digital Businesses',
+      desc: 'Acquire high-authority websites and SaaS platforms. Verified profitable assets.',
+      icon: Globe,
+      stats: '$2.4M+ Volume',
+      color: 'bg-indigo-600',
+      iconColor: 'text-indigo-600',
+      bgColor: 'bg-indigo-50/50'
+    },
+    {
+      title: 'Safe Payouts',
+      desc: '100% Secure manual escrow. Admin handles funds until deal success.',
+      icon: Shield,
+      stats: '100% Protected',
+      color: 'bg-amber-500',
+      iconColor: 'text-amber-500',
+      bgColor: 'bg-amber-50/50'
+    },
+    {
+      title: 'Social Media',
+      desc: 'Premium Instagram, Facebook, and Twitter accounts with verified real growth.',
+      icon: Users,
+      stats: '100% Verified',
+      color: 'bg-pink-600',
+      iconColor: 'text-pink-600',
+      bgColor: 'bg-pink-50/50'
+    },
+    {
+      title: 'Gaming Assets',
+      desc: 'Elite gaming IDs, rare skins, and virtual items. Fast and secure trading.',
+      icon: Gamepad2,
+      stats: 'Instant Delivery',
+      color: 'bg-rose-600',
+      iconColor: 'text-rose-600',
+      bgColor: 'bg-rose-50/50'
+    },
+    {
+      title: 'Themes & Plugins',
+      desc: 'Acquire premium website themes, plugins, and mobile app source code.',
+      icon: Package,
+      stats: 'Instant Access',
+      color: 'bg-emerald-600',
+      iconColor: 'text-emerald-600',
+      bgColor: 'bg-emerald-50/50'
+    },
+    {
+      title: '24/7 Support',
+      desc: 'Real-time direct chat between buyers and sellers with expert moderation.',
+      icon: MessageSquare,
+      stats: 'Always Available',
+      color: 'bg-blue-600',
+      iconColor: 'text-blue-600',
+      bgColor: 'bg-blue-50/50'
+    }
+  ];
+
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % potentialSlides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [isAutoPlaying, potentialSlides.length]);
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const q = query(
+          collection(db, 'listings'),
+          where('status', '==', 'approved'),
+          orderBy('createdAt', 'desc'),
+          limit(6)
+        );
+        const snapshot = await getDocs(q);
+        const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Listing));
+        setFeaturedListings(listings);
+      } catch (error) {
+        console.error('Error fetching featured listings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFeatured();
+  }, []);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/browse?search=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
+  const stats = [
+    { label: 'Total Volume', value: '$2.4M+', icon: TrendingUp },
+    { label: 'Active Buyers', value: '12,000+', icon: Users },
+    { label: 'Avg. Sale Time', value: '14 Days', icon: Clock },
+    { label: 'Success Rate', value: '98%', icon: Award },
+  ];
+
+  const steps = [
+    {
+      title: 'List Your Website',
+      desc: 'Create a free listing in minutes. No upfront fees, no hidden costs.',
+      icon: PlusCircle,
+      color: 'indigo'
+    },
+    {
+      title: 'Get Verified Offers',
+      desc: 'Connect with serious buyers through our secure messaging system.',
+      icon: MessageSquare,
+      color: 'blue'
+    },
+    {
+      title: 'Secure Escrow',
+      desc: 'We hold funds securely until the website transfer is complete.',
+      icon: Shield,
+      color: 'green'
+    },
+    {
+      title: 'Get Paid Fast',
+      desc: 'Funds are released to your account instantly after verification.',
+      icon: DollarSign,
+      color: 'amber'
+    }
+  ];
+
+  return (
+    <div className="bg-white overflow-hidden">
+      {/* Hero Section */}
+      <section className="relative pt-20 pb-20 lg:pt-32 lg:pb-40">
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute -top-[30%] -left-[10%] w-[70%] h-[70%] bg-indigo-50 rounded-full blur-3xl opacity-50" />
+          <div className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-blue-50 rounded-full blur-3xl opacity-50" />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full text-xs font-black uppercase tracking-widest mb-8 border border-indigo-100"
+          >
+            <Sparkles className="w-4 h-4" />
+            The #1 Manual Escrow Marketplace
+          </motion.div>
+          
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.8 }}
+            className="text-5xl lg:text-7xl font-black text-gray-900 mb-8 tracking-tighter leading-[0.9] uppercase"
+          >
+            Liquidate <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600">Digital Assets</span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-lg lg:text-xl text-gray-500 max-w-2xl mx-auto mb-12 leading-relaxed"
+          >
+            Join the elite club of digital entrepreneurs. List for free, trade with confidence, and grow your portfolio with our secure manual escrow service.
+          </motion.p>
+
+          <motion.form
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            onSubmit={handleSearch}
+            className="max-w-3xl mx-auto relative group"
+          >
+            <div className="absolute inset-0 bg-indigo-600/10 rounded-[2rem] blur-xl group-hover:bg-indigo-600/20 transition-all" />
+            <div className="relative flex items-center p-2 bg-white rounded-[2rem] shadow-2xl border border-gray-100">
+              <div className="flex-grow flex items-center px-6">
+                <Search className="w-6 h-6 text-gray-400 mr-4" />
+                <input
+                  type="text"
+                  placeholder="Search by category, platform, or keyword..."
+                  className="w-full py-4 text-lg outline-none text-gray-900 placeholder:text-gray-400 font-medium"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <button
+                type="submit"
+                className="bg-indigo-600 text-white px-10 py-5 rounded-[1.5rem] font-black text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center gap-2"
+              >
+                Search
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          </motion.form>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="mt-16 flex flex-wrap justify-center gap-8 opacity-50 grayscale hover:grayscale-0 transition-all text-gray-400 font-black uppercase tracking-widest text-[10px]"
+          >
+            {['Profitable Websites', 'Social Media accounts', 'Premium Themes', 'Mobile Apps', 'Aged accounts', 'Source Code'].map(tag => (
+              <span key={tag} className="hover:text-indigo-600 transition-colors cursor-pointer">{tag}</span>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Platform Potential Showcase Slider - Integrated & Clean */}
+      <section className="py-12 bg-gray-50/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden relative min-h-[350px] md:min-h-[400px]">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentSlide}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className="absolute inset-0 flex flex-col md:flex-row items-center"
+              >
+                {/* Content Side */}
+                <div className="flex-1 p-10 md:p-20">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className={cn(
+                      "inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 text-white",
+                      potentialSlides[currentSlide].color
+                    )}
+                  >
+                    {React.createElement(potentialSlides[currentSlide].icon, { className: "w-4 h-4" })}
+                    {potentialSlides[currentSlide].stats}
+                  </motion.div>
+
+                  <h3 className="text-4xl md:text-6xl font-black text-gray-900 mb-6 tracking-tight leading-[1] uppercase">
+                    {potentialSlides[currentSlide].title}
+                  </h3>
+
+                  <p className="text-lg md:text-xl text-gray-500 leading-relaxed max-w-xl font-medium">
+                    {potentialSlides[currentSlide].desc}
+                  </p>
+                </div>
+
+                {/* Visual Side */}
+                <div className="flex-1 h-2/3 md:h-full w-full flex items-center justify-center p-10 relative overflow-hidden">
+                  <div className={cn(
+                    "absolute inset-0 m-12 rounded-full blur-3xl opacity-20",
+                    potentialSlides[currentSlide].iconColor.replace('text-', 'bg-')
+                  )} />
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0, rotate: -5 }}
+                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                    transition={{ duration: 0.8, delay: 0.1 }}
+                    className={cn(
+                      "w-48 h-48 md:w-72 md:h-72 rounded-[4rem] flex items-center justify-center relative z-10 shadow-2xl",
+                      potentialSlides[currentSlide].bgColor
+                    )}
+                  >
+                    {React.createElement(potentialSlides[currentSlide].icon, { 
+                      className: cn("w-24 h-24 md:w-36 md:h-36", potentialSlides[currentSlide].iconColor) 
+                    })}
+                  </motion.div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Slider Navigation Dots */}
+            <div className="absolute bottom-10 left-10 md:left-20 flex gap-3 z-20">
+              {potentialSlides.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setCurrentSlide(i);
+                    setIsAutoPlaying(false);
+                  }}
+                  className={cn(
+                    "transition-all duration-300 rounded-full",
+                    currentSlide === i ? "w-12 h-2.5 bg-indigo-600" : "w-2.5 h-2.5 bg-gray-200 hover:bg-gray-300"
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Listings */}
+      <section className="py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
+            <div>
+              <h2 className="text-4xl font-black text-gray-900 mb-4 tracking-tight leading-none">Featured Opportunities</h2>
+              <p className="text-gray-500 max-w-xl">Hand-picked profitable websites with verified traffic and revenue data.</p>
+            </div>
+            <Link to="/browse" className="group flex items-center gap-2 text-indigo-600 font-black uppercase tracking-widest text-xs hover:gap-4 transition-all">
+              View All Listings
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {loading ? (
+              [...Array(6)].map((_, i) => (
+                <div key={i} className="bg-gray-100 rounded-3xl h-[450px] animate-pulse" />
+              ))
+            ) : (
+              featuredListings.map(listing => (
+                <Link
+                  key={listing.id}
+                  to={`/listing/${listing.id}`}
+                  className="group bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all hover:-translate-y-2"
+                >
+                  <div className="aspect-video relative overflow-hidden bg-gray-100">
+                    <img
+                      src={listing.images[0] || `https://picsum.photos/seed/${listing.id}/600/400`}
+                      alt={listing.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute top-4 left-4 flex flex-col gap-2">
+                        <span className={cn(
+                          "px-4 py-1.5 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2",
+                          listing.type === 'website' ? "bg-indigo-600 text-white" :
+                          listing.type === 'youtube' ? "bg-red-600 text-white" :
+                          listing.type === 'tiktok' ? "bg-pink-600 text-white" :
+                          listing.type === 'instagram' ? "bg-purple-600 text-white" :
+                          listing.type === 'facebook' ? "bg-blue-600 text-white" :
+                          listing.type === 'twitter' ? "bg-sky-600 text-white" :
+                          listing.type === 'theme_plugin' ? "bg-emerald-600 text-white" :
+                          listing.type === 'mobile_app' ? "bg-violet-600 text-white" :
+                          listing.type === 'games' ? "bg-rose-600 text-white" :
+                          listing.type === 'group_buy' ? "bg-amber-600 text-white" :
+                          listing.type === 'premium_tool' ? "bg-purple-600 text-white" : "bg-teal-600 text-white"
+                        )}>
+                          {listing.type === 'website' ? <Globe className="w-3 h-3" /> :
+                           listing.type === 'youtube' ? <Video className="w-3 h-3" /> :
+                           listing.type === 'tiktok' ? <Music2 className="w-3 h-3" /> :
+                           listing.type === 'instagram' ? <Instagram className="w-3 h-3" /> :
+                           listing.type === 'facebook' ? <Facebook className="w-3 h-3" /> :
+                           listing.type === 'twitter' ? <Twitter className="w-3 h-3" /> :
+                           listing.type === 'theme_plugin' ? <Package className="w-3 h-3" /> :
+                           listing.type === 'mobile_app' ? <Smartphone className="w-3 h-3" /> :
+                           listing.type === 'games' ? <Gamepad2 className="w-3 h-3" /> :
+                           listing.type === 'group_buy' ? <Search className="w-3 h-3" /> :
+                           listing.type === 'premium_tool' ? <Star className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
+                          {listing.type?.replace('_', ' ').toUpperCase() || 'WEBSITE'}
+                        </span>
+                    </div>
+                    <div className="absolute top-4 right-4">
+                      <FavoriteButton itemId={listing.id} />
+                    </div>
+                  </div>
+                  <div className="p-8">
+                    <h3 className="text-xl font-black text-gray-900 mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">{listing.title}</h3>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-6">{listing.url}</p>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-8">
+                      <div className="p-4 bg-gray-50 rounded-2xl">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                          {listing.type === 'youtube' ? 'Subscribers' : 
+                           (listing.type === 'tiktok' || listing.type === 'instagram' || listing.type === 'facebook' || listing.type === 'twitter' || listing.type === 'threads') ? 'Followers' :
+                           listing.type === 'games' ? 'Account Level' : 'Monthly Profit'}
+                        </div>
+                        <div className="text-lg font-black text-gray-900">
+                          {listing.type === 'youtube' ? (listing.subscribers?.toLocaleString() || '0') : 
+                           (listing.type === 'tiktok' || listing.type === 'instagram' || listing.type === 'facebook' || listing.type === 'twitter' || listing.type === 'threads') ? (listing.followers?.toLocaleString() || '0') :
+                           listing.type === 'games' ? (listing.gameLevel || 'N/A') : formatCurrency(listing.monthlyProfit)}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded-2xl">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Asking Price</div>
+                        <div className="text-lg font-black text-indigo-600">{formatCurrency(listing.askingPrice)}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                          {listing.type === 'youtube' ? <ArrowRight className="w-4 h-4" /> : 
+                           listing.type === 'tiktok' ? <Video className="w-4 h-4" /> :
+                           listing.type === 'instagram' ? <Instagram className="w-4 h-4" /> :
+                           listing.type === 'facebook' ? <Facebook className="w-4 h-4" /> :
+                           listing.type === 'twitter' ? <Twitter className="w-4 h-4" /> :
+                           listing.type === 'theme_plugin' ? <Package className="w-4 h-4" /> :
+                           listing.type === 'mobile_app' ? <Smartphone className="w-4 h-4" /> :
+                           listing.type === 'games' ? <Gamepad2 className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
+                        </div>
+                        <span className="text-xs font-bold text-gray-500">
+                          {listing.type === 'youtube' ? `Subscribers` : 
+                           (listing.type === 'tiktok' || listing.type === 'instagram' || listing.type === 'facebook' || listing.type === 'twitter' || listing.type === 'threads') ? `Followers` :
+                           listing.type === 'theme_plugin' ? 'Source Code' :
+                           listing.type === 'mobile_app' ? 'App Store' :
+                           listing.type === 'games' ? `Platform` : `${listing.monthlyTraffic.toLocaleString()} Visitors`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs font-bold text-indigo-600">
+                        Details
+                        <ArrowRight className="w-3 h-3" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* How it Works - Enhanced Trust Content */}
+      <section id="how-it-works" className="py-32 bg-indigo-950 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-indigo-800/20 -skew-x-12 translate-x-1/2" />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="text-center mb-24">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-4xl lg:text-7xl font-black mb-8 tracking-tighter"
+            >
+              The Most Trusted Way <br />
+              <span className="text-indigo-400 italic">To Trade Online</span>
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-indigo-200 max-w-3xl mx-auto text-xl leading-relaxed font-medium"
+            >
+              Direct & instant fully trusted payment solutions without extra fee's. 
+              Secure handle through Admin Escrow ensures happy buyers and successful sellers.
+            </motion.p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+            {[
+              {
+                title: 'Instant Direct Chat',
+                desc: 'Negotiate instantly. Both buyer and seller can chat 24/7 to finalize deal terms and share details securely.',
+                icon: MessageSquare
+              },
+              {
+                title: 'Secure Admin Escrow',
+                desc: 'Send payment directly to Admin. We hold the funds safely while you verify the assets/accounts.',
+                icon: Shield
+              },
+              {
+                title: '24/7 Live Support',
+                desc: 'Our team monitors every transaction round the clock. We are always here to facilitate your deals.',
+                icon: Clock
+              },
+              {
+                title: 'Successful Payout',
+                desc: 'Once you are 100% satisfied, payment is sent to the seller. Fast, transparent, and trusted.',
+                icon: CheckCircle2
+              }
+            ].map((step, i) => (
+              <motion.div 
+                key={i} 
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="relative group"
+              >
+                {i < 3 && (
+                  <div className="hidden lg:block absolute top-12 left-full w-full h-px bg-white/10 -translate-x-6 z-0" />
+                )}
+                <div className="relative z-10 p-8 rounded-[2.5rem] bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-500">
+                  <div className="w-20 h-20 bg-indigo-500 text-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                    <step.icon className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-xl font-black mb-4 uppercase tracking-tight">{step.title}</h3>
+                  <p className="text-indigo-100/70 text-sm leading-relaxed">{step.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-24 p-12 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[3rem] flex flex-col lg:flex-row items-center justify-between gap-10">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/20">
+                <CheckCircle2 className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h4 className="text-2xl font-black mb-1">Ready to start your journey?</h4>
+                <p className="text-indigo-200">Join 12,000+ entrepreneurs today.</p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <Link to="/register" className="bg-white text-indigo-900 px-10 py-5 rounded-2xl font-black text-lg hover:bg-indigo-50 transition-all">
+                Get Started
+              </Link>
+              <Link to="/browse" className="bg-indigo-800 text-white px-10 py-5 rounded-2xl font-black text-lg hover:bg-indigo-700 transition-all border border-indigo-700">
+                Browse Listings
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Freelance Marketplace Section */}
+      <section className="py-24 bg-indigo-600 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md text-white text-[10px] font-black rounded-full border border-white/20 mb-6 uppercase tracking-widest">
+                <Briefcase className="w-3.5 h-3.5" />
+                New: Freelance Marketplace
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black text-white mb-8 tracking-tight leading-tight">
+                Hire Expert Talent for Your <span className="text-indigo-200">Digital Growth</span>
+              </h2>
+              <p className="text-lg text-indigo-100 mb-10 leading-relaxed opacity-90">
+                Beyond buying and selling websites, you can now hire top-rated freelancers for SEO, Web Development, Content Writing, and more.
+              </p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12">
+                {[
+                  { title: 'Vetted Experts', desc: 'Only the best professionals.' },
+                  { title: 'Secure Escrow', desc: 'Your money is safe with us.' },
+                  { title: 'Fast Delivery', desc: 'Get results in record time.' },
+                  { title: '24/7 Support', desc: 'We are here to help you.' }
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-black text-white">{item.title}</div>
+                      <div className="text-xs text-indigo-100 opacity-70">{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Link
+                to="/freelancers"
+                className="inline-flex items-center gap-3 bg-white text-indigo-600 px-10 py-5 rounded-2xl font-black text-lg hover:bg-indigo-50 transition-all shadow-2xl shadow-black/20"
+              >
+                Explore Services
+                <ArrowRight className="w-6 h-6" />
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="relative"
+            >
+              <div className="bg-white/10 backdrop-blur-md rounded-[3rem] p-8 border border-white/20 shadow-2xl">
+                <div className="grid grid-cols-2 gap-6">
+                  {[
+                    { label: 'Web Dev', icon: Globe, color: 'bg-blue-500' },
+                    { label: 'Design', icon: Award, color: 'bg-pink-500' },
+                    { label: 'SEO', icon: Zap, color: 'bg-amber-500' },
+                    { label: 'Content', icon: FileText, color: 'bg-emerald-500' }
+                  ].map((cat, i) => (
+                    <div key={i} className="bg-white rounded-3xl p-6 text-center shadow-lg">
+                      <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white mx-auto mb-4", cat.color)}>
+                        <cat.icon className="w-6 h-6" />
+                      </div>
+                      <div className="text-sm font-black text-gray-900">{cat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Floating Element */}
+              <motion.div
+                animate={{ y: [0, -20, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -top-10 -right-10 bg-white p-6 rounded-3xl shadow-2xl border border-gray-100 hidden md:block"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-600">
+                    <DollarSign className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-gray-400 uppercase tracking-widest">Total Earned</div>
+                    <div className="text-xl font-black text-gray-900">$12,450.00</div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Section */}
+      <section className="py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <div className="relative">
+              <div className="absolute -top-10 -left-10 w-40 h-40 bg-indigo-100 rounded-full blur-3xl opacity-50" />
+              <img 
+                src="https://picsum.photos/seed/trust/800/600" 
+                alt="Trust" 
+                className="rounded-[3rem] shadow-2xl relative z-10"
+              />
+              <div className="absolute -bottom-10 -right-10 bg-white p-8 rounded-3xl shadow-2xl z-20 border border-gray-100 max-w-xs">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center">
+                    <Shield className="w-6 h-6" />
+                  </div>
+                  <div className="font-black text-gray-900">Verified Escrow</div>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">We manually verify every transaction to ensure your funds and assets are safe.</p>
+              </div>
+            </div>
+            
+            <div className="space-y-8">
+              <h2 className="text-4xl lg:text-5xl font-black text-gray-900 tracking-tight leading-none">Why Choose Next Flippers?</h2>
+              <p className="text-lg text-gray-500 leading-relaxed">We've built a platform that prioritizes security and simplicity over everything else. No automated bots, just real people facilitating real deals.</p>
+              
+              <div className="space-y-6">
+                {[
+                  { title: 'Manual Verification', desc: 'Every listing is reviewed by our team before going live.' },
+                  { title: 'Escrow Protection', desc: 'Funds are only released when both parties are 100% satisfied.' },
+                  { title: 'Zero Hidden Fees', desc: 'Transparent commission structure with no surprises.' },
+                  { title: 'Direct Communication', desc: 'Chat directly with sellers and negotiate the best price.' }
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-4 p-6 bg-gray-50 rounded-3xl border border-gray-100 hover:bg-white hover:shadow-xl transition-all">
+                    <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-gray-900 mb-1">{item.title}</h4>
+                      <p className="text-sm text-gray-500">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

@@ -17,6 +17,7 @@
   "dependencies": {
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
+    "@vitejs/plugin-legacy": "^8.0.1",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
@@ -29,6 +30,7 @@
     "react-phone-input-2": "^2.15.1",
     "react-router-dom": "^7.13.2",
     "tailwind-merge": "^3.5.0",
+    "terser": "^5.46.2",
     "vite": "^6.2.0"
   },
   "devDependencies": {

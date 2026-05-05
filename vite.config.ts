@@ -11,7 +11,8 @@ export default defineConfig(({mode}) => {
       react(), 
       tailwindcss(),
       legacy({
-        targets: ['chrome >= 60', 'defaults', 'not IE 11'],
+        targets: ['chrome >= 49', 'defaults', 'not IE 11'],
+        additionalLegacyPolyfills: ['regenerator-runtime/runtime']
       }),
     ],
     define: {

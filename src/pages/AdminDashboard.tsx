@@ -18,6 +18,7 @@ import {
 import { formatCurrency, cn, createNotification } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import ProfileAvatar from '../components/ProfileAvatar';
+import { emailService } from '../services/emailService';
 
 export default function AdminDashboard() {
   const { user, profile, isAdmin } = useAuth();
@@ -97,6 +98,12 @@ export default function AdminDashboard() {
       await updateDoc(listingRef, { status });
       setListings(prev => prev.map(l => l.id === id ? { ...l, status } : l));
 
+      // Get user email for email notification
+      const userProfile = users.find(u => u.uid === listingData.userId);
+      if (userProfile?.email && status === 'approved') {
+        await emailService.sendApproval(userProfile.email, listingData.title, 'listing');
+      }
+
       // Send notification to user
       await addDoc(collection(db, 'notifications'), {
         userId: listingData.userId,
@@ -122,6 +129,12 @@ export default function AdminDashboard() {
 
       await updateDoc(gigRef, { status });
       setGigs(prev => prev.map(g => g.id === id ? { ...g, status } : g));
+
+      // Get user email for email notification
+      const userProfile = users.find(u => u.uid === gigData.userId);
+      if (userProfile?.email && status === 'active') {
+        await emailService.sendApproval(userProfile.email, gigData.title, 'gig');
+      }
 
       // Send notification to user
       await addDoc(collection(db, 'notifications'), {

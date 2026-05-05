@@ -71,6 +71,16 @@ export default function Cart() {
       
       // Navigate to payment instructions with all transaction IDs
       const txIds = transactions.map(t => t.id).join(',');
+      
+      // Send invoice email
+      if (user?.email) {
+        await emailService.sendInvoice(user.email, {
+          orderId: txIds.split(',')[0].slice(-6).toUpperCase(), // Using first transaction ID as order reference
+          amount: finalTotal.toFixed(2),
+          items: cart.map(i => ({ title: i.title, price: i.price }))
+        });
+      }
+
       navigate(`/payment/instructions?txIds=${txIds}`);
 
     } catch (error) {

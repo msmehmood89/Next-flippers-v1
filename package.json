@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "start": "vite preview",
@@ -17,10 +17,14 @@
   "dependencies": {
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@vitejs/plugin-legacy": "^8.0.1",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "firebase": "^12.11.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
@@ -29,6 +33,7 @@
     "react-markdown": "^10.1.0",
     "react-phone-input-2": "^2.15.1",
     "react-router-dom": "^7.13.2",
+    "resend": "^6.12.2",
     "tailwind-merge": "^3.5.0",
     "terser": "^5.46.2",
     "vite": "^6.2.0"

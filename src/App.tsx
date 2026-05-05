@@ -14,6 +14,7 @@ import Browse from './pages/Browse';
 import ListingDetails from './pages/ListingDetails';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import ChatPage from './pages/ChatPage';
 import PaymentInstructions from './pages/PaymentInstructions';
@@ -210,6 +211,7 @@ export default function App() {
                 <Route path="/statistics/:userId" element={<Statistics />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/setup-username" element={
                   <ProtectedRoute>
                     <SetupUsername />

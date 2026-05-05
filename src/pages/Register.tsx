@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, query, collection, where, getDocs, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { motion } from 'motion/react';
+import { emailService } from '../services/emailService';
+import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Lock, Phone, ArrowRight, ShieldCheck, Globe, Users, Briefcase, ShoppingBag, AlertCircle, Chrome } from 'lucide-react';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
@@ -22,7 +23,24 @@ export default function Register() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [generatedOTP, setGeneratedOTP] = useState('');
   const navigate = useNavigate();
+
+  const generateOTP = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationCode === generatedOTP) {
+      await emailService.sendWelcome(formData.email, formData.name);
+      navigate('/dashboard');
+    } else {
+      setError('Invalid verification code. Please try again.');
+    }
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +113,11 @@ export default function Register() {
       });
       console.log('User profile created successfully');
 
-      navigate('/dashboard');
+      // Send OTP for verification
+      const otp = generateOTP();
+      setGeneratedOTP(otp);
+      await emailService.sendOTP(formData.email, otp, 'verification');
+      setShowVerification(true);
     } catch (err: any) {
       console.error('Registration error:', err);
       let msg = err.message || 'Registration failed';
@@ -149,24 +171,29 @@ export default function Register() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 p-4 py-20">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-xl w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12"
-      >
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-          <p className="text-gray-500">Join the Next Flippers community today.</p>
-        </div>
+      <AnimatePresence mode="wait">
+        {!showVerification ? (
+          <motion.div
+            key="register-form"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="max-w-xl w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12"
+          >
+            <div className="text-center mb-10">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
+              <p className="text-gray-500">Join the Next Flippers community today.</p>
+            </div>
 
-        {error && (
-          <div className="mb-8 p-4 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 flex items-center gap-3">
-            <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
-            {error}
-          </div>
-        )}
+            {error && (
+              <div className="mb-8 p-4 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 flex items-center gap-3">
+                <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+                {error}
+              </div>
+            )}
 
-        <form onSubmit={handleRegister} className="space-y-6">
+            <form onSubmit={handleRegister} className="space-y-6">
+              {/* Form fields remain the same */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
@@ -366,6 +393,66 @@ export default function Register() {
           <Link to="/login" className="text-indigo-600 font-bold hover:underline">Sign in</Link>
         </p>
       </motion.div>
-    </div>
-  );
+    ) : (
+      <motion.div
+        key="otp-verification"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12"
+      >
+        <div className="text-center mb-10">
+          <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <ShieldCheck className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
+          <p className="text-gray-500 text-sm">We've sent a 6-digit code to <span className="font-bold text-gray-700">{formData.email}</span></p>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleVerifyOTP} className="space-y-6">
+          <div>
+            <input
+              type="text"
+              maxLength={6}
+              required
+              autoFocus
+              className="w-full text-center text-3xl font-black tracking-[0.5em] py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+              placeholder="000000"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+          >
+            Verify & Create Account
+          </button>
+
+          <p className="text-center text-sm text-gray-400">
+            Didn't receive the code?{' '}
+            <button 
+              type="button"
+              onClick={() => {
+                const otp = generateOTP();
+                setGeneratedOTP(otp);
+                emailService.sendOTP(formData.email, otp, 'verification');
+              }}
+              className="text-indigo-600 font-bold hover:underline"
+            >
+              Resend
+            </button>
+          </p>
+        </form>
+      </motion.div>
+    )}
+  </AnimatePresence>
+</div>
+);
 }

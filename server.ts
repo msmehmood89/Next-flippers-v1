@@ -18,27 +18,67 @@ app.use(express.json());
 
 // --- API ROUTES ---
 
+// Helper for consistent premium email styling
+const getEmailTemplate = (title: string, content: string, ctaText?: string, ctaLink?: string) => `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        .container { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #ffffff; }
+        .logo { font-size: 24px; font-weight: 800; color: #4f46e5; text-decoration: none; margin-bottom: 30px; display: block; letter-spacing: -0.02em; }
+        .card { background: #ffffff; border: 1px solid #f1f5f9; border-radius: 24px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); }
+        h1 { color: #0f172a; font-size: 24px; font-weight: 700; margin-top: 0; margin-bottom: 16px; letter-spacing: -0.02em; }
+        p { color: #475569; font-size: 16px; line-height: 1.6; margin-bottom: 24px; }
+        .button { background-color: #4f46e5; color: #ffffff !important; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block; transition: all 0.2s; }
+        .footer { margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9; text-align: center; }
+        .footer-text { color: #94a3b8; font-size: 13px; line-height: 1.4; }
+        .highlight { color: #4f46e5; font-weight: 600; }
+        .otp-box { background: #f8fafc; border-radius: 16px; padding: 24px; text-align: center; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #1e293b; margin: 30px 0; border: 1px dashed #e2e8f0; }
+      </style>
+    </head>
+    <body style="background-color: #f8fafc; margin: 0; padding: 0;">
+      <div class="container">
+        <a href="https://nextflippers.com" class="logo">NextFlippers</a>
+        <div class="card">
+          <h1>${title}</h1>
+          ${content}
+          ${ctaText && ctaLink ? `
+            <div style="margin-top: 32px; text-align: center;">
+              <a href="${ctaLink}" class="button">${ctaText}</a>
+            </div>
+          ` : ''}
+        </div>
+        <div class="footer">
+          <p class="footer-text">
+            © ${new Date().getFullYear()} NextFlippers Marketplace. All rights reserved.<br>
+            If you have any questions, contact us at support@nextflippers.com
+          </p>
+        </div>
+      </div>
+    </body>
+  </html>
+`;
+
 // 1. Send Welcome Email
 app.post("/api/email/welcome", async (req, res) => {
   const { email, name } = req.body;
   if (!email || !name) return res.status(400).json({ error: "Email and name are required" });
 
   try {
+    const html = getEmailTemplate(
+      `Welcome, ${name}!`,
+      `<p>We're thrilled to have you join <span class="highlight">NextFlippers</span>, the premium marketplace for digital assets. You can now browse, buy, and sell verified websites, domains, and tools with global confidence.</p>
+       <p>Whether you're looking to acquire your next venture or exit a successful project, we're here to help you every step of the way.</p>`,
+      "Explore Marketplace",
+      "https://nextflippers.com/browse"
+    );
+
     const { data, error } = await resend.emails.send({
       from: "NextFlippers <support@nextflippers.com>",
       to: [email],
       subject: "Welcome to NextFlippers! 🚀",
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-          <h1 style="color: #4f46e5; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">Welcome, ${name}!</h1>
-          <p style="font-size: 16px; color: #334155; line-height: 1.6;">We're thrilled to have you join NextFlippers, the premium marketplace for digital assets.</p>
-          <p style="font-size: 16px; color: #334155; line-height: 1.6;">You can now browse, buy, and sell verified websites, domains, and tools with ease.</p>
-          <div style="margin: 30px 0; text-align: center;">
-            <a href="https://nextflippers.com/browse" style="background: #4f46e5; color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Explore Marketplace</a>
-          </div>
-          <p style="font-size: 14px; color: #64748b; margin-top: 40px; border-top: 1px solid #f1f5f9; padding-top: 15px;">Best regards,<br>The NextFlippers Team</p>
-        </div>
-      `,
+      html,
     });
 
     if (error) throw error;
@@ -54,21 +94,52 @@ app.post("/api/email/invoice", async (req, res) => {
   const { email, orderId, amount, items } = req.body;
   
   try {
+    const itemsHtml = items && Array.isArray(items) 
+      ? `
+        <div style="margin: 24px 0; border: 1px solid #f1f5f9; border-radius: 16px; overflow: hidden;">
+          <table style="width: 100%; border-collapse: collapse; background: #ffffff;">
+            <thead>
+              <tr style="background: #f8fafc; border-bottom: 1px solid #f1f5f9;">
+                <th style="text-align: left; padding: 12px 16px; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Asset</th>
+                <th style="text-align: right; padding: 12px 16px; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(item => `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 16px; font-size: 15px; font-weight: 600; color: #1e293b;">${item.title}</td>
+                  <td style="padding: 16px; text-align: right; font-size: 15px; color: #1e293b;">$${item.price}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td style="padding: 16px; font-weight: 700; color: #0f172a; font-size: 16px;">Total Paid</td>
+                <td style="padding: 16px; text-align: right; font-weight: 700; color: #4f46e5; font-size: 18px;">$${amount}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      `
+      : `<div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 24px 0;">
+           <p style="margin: 0; font-size: 14px;">Total Amount Paid</p>
+           <p style="margin: 4px 0 0 0; font-size: 24px; font-weight: 700; color: #0f172a;">$${amount}</p>
+         </div>`;
+
+    const html = getEmailTemplate(
+      "Payment Confirmation",
+      `<p>Thank you for your purchase! We have received your payment for order <span class="highlight">#${orderId}</span>.</p>
+       ${itemsHtml}
+       <p>You can now manage your assets and start the transfer process from your dashboard. Our support team is ready to assist if you need any help.</p>`,
+      "View My Dashboard",
+      "https://nextflippers.com/dashboard"
+    );
+
     const { data, error } = await resend.emails.send({
       from: "NextFlippers <support@nextflippers.com>",
       to: [email],
-      subject: `Invoice for Order #${orderId}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-          <h2 style="color: #4f46e5;">Order Confirmation</h2>
-          <p>Thank you for your purchase on NextFlippers.</p>
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Order ID:</strong> ${orderId}</p>
-            <p><strong>Total Amount:</strong> $${amount}</p>
-          </div>
-          <p style="font-size: 14px; color: #64748b;">If you have any questions, reply to this email or visit our support page.</p>
-        </div>
-      `,
+      subject: `Order Confirmation #${orderId} - NextFlippers`,
+      html,
     });
     if (error) throw error;
     res.json({ success: true, data });
@@ -79,23 +150,21 @@ app.post("/api/email/invoice", async (req, res) => {
 
 // 3. 2FA / Verification OTP
 app.post("/api/auth/send-otp", async (req, res) => {
-  const { email, otp, type } = req.body; // type: 'verification' | '2fa'
+  const { email, otp, type } = req.body;
   
   try {
+    const title = type === '2fa' ? "Security Verification" : "Verify Your Email";
+    const content = `<p>Please use the following single-use code to ${type === '2fa' ? 'secure your login' : 'complete your registration'} on NextFlippers.</p>
+                     <div class="otp-box">${otp}</div>
+                     <p style="font-size: 14px; text-align: center;">This code will expire in <span class="highlight">10 minutes</span>. If you didn't request this code, please ignore this email.</p>`;
+
+    const html = getEmailTemplate(title, content);
+
     const { data, error } = await resend.emails.send({
       from: "NextFlippers <support@nextflippers.com>",
       to: [email],
-      subject: type === '2fa' ? "Your Login Backup Code" : "Verify Your Email",
-      html: `
-        <div style="font-family: sans-serif; text-align: center; padding: 40px;">
-          <h2 style="color: #4f46e5;">${type === '2fa' ? 'Login Verification' : 'Welcome to NextFlippers'}</h2>
-          <p>Your ${type === '2fa' ? 'one-time password' : 'verification code'} is:</p>
-          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #1e293b; margin: 20px 0;">
-            ${otp}
-          </div>
-          <p style="color: #64748b; font-size: 13px;">This code will expire in 10 minutes.</p>
-        </div>
-      `,
+      subject: type === '2fa' ? "NextFlippers: Login Verification Code" : "Verify your account",
+      html,
     });
     if (error) throw error;
     res.json({ success: true });
@@ -109,21 +178,19 @@ app.post("/api/email/approval", async (req, res) => {
   const { email, title, type } = req.body;
   
   try {
+    const html = getEmailTemplate(
+      "Review Approved!",
+      `<p>Your ${type} "<span class="highlight">${title}</span>" has been reviewed and approved by our moderation team.</p>
+       <p>It is now live on the marketplace and visible to potential buyers globally. We wish you a successful sale!</p>`,
+      `View Your ${type}`,
+      "https://nextflippers.com/browse"
+    );
+
     const { data, error } = await resend.emails.send({
       from: "NextFlippers <support@nextflippers.com>",
       to: [email],
-      subject: `Your ${type} has been approved! 🎉`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-          <h2 style="color: #4f46e5;">Good News!</h2>
-          <p>Your ${type} "<strong>${title}</strong>" has been reviewed and approved by our admin team.</p>
-          <p>It is now live on the marketplace and visible to potential buyers.</p>
-          <div style="margin: 30px 0;">
-            <a href="https://nextflippers.com/browse" style="background: #4f46e5; color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">View in Marketplace</a>
-          </div>
-          <p style="font-size: 13px; color: #64748b;">Thank you for being a part of NextFlippers!</p>
-        </div>
-      `,
+      subject: `Your ${type} is live! 🎉`,
+      html,
     });
     if (error) throw error;
     res.json({ success: true, data });

@@ -463,7 +463,8 @@ export default function MyPurchases() {
                             <div className="flex gap-3">
                               <button 
                                 onClick={() => handleCancelOrder(tx.id)}
-                                className="flex-grow bg-red-600 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest"
+                                disabled={!cancelReason.trim()}
+                                className="flex-grow bg-red-600 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-700 transition-all shadow-lg shadow-red-100"
                               >
                                 Confirm Cancellation
                               </button>

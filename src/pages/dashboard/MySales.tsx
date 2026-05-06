@@ -14,6 +14,8 @@ export default function MySales() {
   const [sales, setSales] = useState<(Transaction & { title?: string, image?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
   const [proofImage, setProofImage] = useState('');
   const [proofNotes, setProofNotes] = useState('');
   const navigate = useNavigate();
@@ -262,6 +264,8 @@ export default function MySales() {
       );
 
       alert('Order cancelled successfully. Admin has been notified for refund processing.');
+      setCancellingId(null);
+      setCancelReason('');
       fetchSales();
     } catch (error) {
       console.error('Error cancelling order:', error);
@@ -351,11 +355,43 @@ export default function MySales() {
                 </div>
               </div>
 
-              {/* Deal Progress Bar */}
-              <div className="mt-8 pt-8 border-t border-gray-50">
-                <DealStatusBar status={sale.dealStatus} role="seller" />
-                
-                {/* Work Proof Section */}
+                  <div className="mt-8 pt-8 border-t border-gray-50 flex flex-col gap-8">
+                    <DealStatusBar status={sale.dealStatus} role="seller" />
+                    
+                    {/* Cancellation Section */}
+                    {cancellingId === sale.id && (
+                      <div className="bg-red-50 p-6 rounded-2xl border border-red-100 space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                        <h5 className="text-[10px] font-black text-red-900 uppercase tracking-widest">Cancel Order & Request Refund for Buyer</h5>
+                        <textarea 
+                          value={cancelReason}
+                          onChange={(e) => setCancelReason(e.target.value)}
+                          placeholder="Why do you want to cancel this order? (Required)"
+                          className="w-full bg-white border border-red-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-red-500"
+                          rows={2}
+                        />
+                        <p className="text-[10px] text-red-400 font-bold italic">This action will alert the admin to refund the buyer.</p>
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={() => handleCancelOrder(sale.id, cancelReason)}
+                            disabled={!cancelReason.trim()}
+                            className="flex-grow bg-red-600 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-700 transition-all shadow-lg shadow-red-100"
+                          >
+                            Confirm Cancellation
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setCancellingId(null);
+                              setCancelReason('');
+                            }}
+                            className="px-6 py-3 bg-white border border-red-200 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-50 transition-all"
+                          >
+                            Back
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Work Proof Section */}
                 {(sale.dealStatus === 'payment_secured' || sale.dealStatus === 'in_escrow') && (
                   <div className="mt-8 bg-gray-50 rounded-2xl p-6 border border-gray-100">
                     <div className="flex items-center justify-between mb-4">
@@ -570,12 +606,9 @@ export default function MySales() {
                   </div>
                   
                   <div className="flex flex-wrap items-center gap-4">
-                    {sale.dealStatus !== 'completed' && sale.dealStatus !== 'refunded' && (
+                    {sale.dealStatus !== 'completed' && sale.dealStatus !== 'refunded' && !cancellingId && (
                       <button 
-                        onClick={() => {
-                          const reason = window.prompt('Please provide a reason for cancellation:');
-                          if (reason) handleCancelOrder(sale.id, reason);
-                        }}
+                        onClick={() => setCancellingId(sale.id)}
                         className="px-6 py-2 bg-white text-red-600 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-red-50 transition-all border border-red-100"
                       >
                         Cancel Order

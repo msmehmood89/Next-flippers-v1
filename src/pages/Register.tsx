@@ -35,8 +35,49 @@ export default function Register() {
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     if (verificationCode === generatedOTP) {
-      await emailService.sendWelcome(formData.email, formData.name);
-      navigate('/dashboard');
+      setError('');
+      setLoading(true);
+      try {
+        const cleanUsername = formData.username.trim().toLowerCase();
+        
+        console.log('OTP Verified. Creating user auth...');
+        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        const user = userCredential.user;
+        console.log('User auth created:', user.uid);
+
+        // Create profile
+        console.log('Attempting to create user profile in Firestore...');
+        await setDoc(doc(db, 'users', user.uid), {
+          name: formData.name,
+          username: cleanUsername,
+          email: formData.email,
+          whatsappNumber: formData.whatsappNumber,
+          country: formData.country || 'Unknown',
+          gender: formData.gender,
+          role: formData.role,
+          status: 'active',
+          createdAt: serverTimestamp(),
+          lastActiveAt: serverTimestamp(),
+          rating: 0,
+          totalReviews: 0,
+          ordersCompleted: 0,
+          websitesBought: 0,
+          websitesSold: 0,
+          totalSales: 0,
+          totalPurchases: 0,
+          responseTime: 'N/A'
+        });
+        
+        await emailService.sendWelcome(formData.email, formData.name);
+        navigate('/dashboard');
+      } catch (err: any) {
+        console.error('Final registration error:', err);
+        let msg = err.message || 'Registration failed';
+        if (err.code === 'auth/email-already-in-use') msg = 'This email is already registered.';
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
     } else {
       setError('Invalid verification code. Please try again.');
     }
@@ -84,48 +125,21 @@ export default function Register() {
         return;
       }
 
-      console.log('Attempting to create user auth...');
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      const user = userCredential.user;
-      console.log('User auth created:', user.uid);
-
-      // Create profile
-      console.log('Attempting to create user profile in Firestore...');
-      await setDoc(doc(db, 'users', user.uid), {
-        name: formData.name,
-        username: cleanUsername,
-        email: formData.email,
-        whatsappNumber: formData.whatsappNumber,
-        country: formData.country || 'Unknown',
-        gender: formData.gender,
-        role: formData.role,
-        status: 'active',
-        createdAt: serverTimestamp(),
-        lastActiveAt: serverTimestamp(),
-        rating: 0,
-        totalReviews: 0,
-        ordersCompleted: 0,
-        websitesBought: 0,
-        websitesSold: 0,
-        totalSales: 0,
-        totalPurchases: 0,
-        responseTime: 'N/A'
-      });
-      console.log('User profile created successfully');
-
       // Send OTP for verification
       const otp = generateOTP();
       setGeneratedOTP(otp);
-      await emailService.sendOTP(formData.email, otp, 'verification');
+      
+      console.log('Sending OTP to:', formData.email);
+      const emailResult = await emailService.sendOTP(formData.email, otp, 'verification');
+      
+      if (emailResult.error) {
+        throw new Error('Failed to send verification email. Please check your email address.');
+      }
+
       setShowVerification(true);
     } catch (err: any) {
-      console.error('Registration error:', err);
-      let msg = err.message || 'Registration failed';
-      if (err.code === 'auth/email-already-in-use') msg = 'This email is already registered.';
-      if (err.code === 'auth/weak-password') msg = 'Password is too weak.';
-      if (err.code === 'auth/operation-not-allowed') msg = 'Email/Password registration is currently disabled. Please use Google Login or enable it in Firebase Console.';
-      if (err.code === 'permission-denied') msg = 'Permission denied. Please contact support.';
-      setError(msg);
+      console.error('Verification initiation error:', err);
+      setError(err.message || 'Failed to send verification code.');
     } finally {
       setLoading(false);
     }

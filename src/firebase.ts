@@ -7,7 +7,8 @@ import firebaseConfig from '../firebase-applet-config.json';
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore with force long polling to bypass WebSocket issues in the AI Studio environment
-// We also disable auto-detect to ensure it sticks to long polling immediately
+// We also disable auto-detect and streams to ensure it sticks to standard long polling immediately
+// which is more compatible with older browsers and corporate/school networks.
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
   experimentalAutoDetectLongPolling: false,

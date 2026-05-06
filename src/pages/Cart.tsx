@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useCart } from '../contexts/CartContext';
 import { formatCurrency, cn, createNotification } from '../lib/utils';
+import { emailService } from '../services/emailService';
 import { 
   Trash2, ShoppingBag, ArrowRight, ShieldCheck, 
   CreditCard, Globe, Briefcase, AlertCircle, DollarSign 

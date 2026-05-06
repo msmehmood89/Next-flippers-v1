@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../App';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
-import { motion } from 'motion/react';
-import { User, Mail, Phone, Shield, Save, AlertCircle, Globe, Users, Briefcase, ShoppingBag } from 'lucide-react';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { auth, db } from '../../firebase';
+import { deleteUser } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
+import { User, Mail, Phone, Shield, Save, AlertCircle, Globe, Users, Briefcase, ShoppingBag, Trash2, X } from 'lucide-react';
 import PhoneInput from 'react-phone-input-2';
 import ProfileAvatar from '../../components/ProfileAvatar';
 
@@ -28,6 +30,38 @@ export default function UserSettings() {
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const navigate = useNavigate();
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setIsDeleting(true);
+
+    try {
+      // 1. Delete from Firestore
+      await deleteDoc(doc(db, 'users', user.uid));
+      
+      // 2. Delete from Auth
+      await deleteUser(user);
+      
+      // 3. Navigate home
+      navigate('/');
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      if (error.code === 'auth/requires-recent-login') {
+        alert('For security reasons, you need to log in again before deleting your account.');
+        // Sign out so they can log back in
+        auth.signOut();
+        navigate('/login');
+      } else {
+        alert('Failed to delete account. Please try again later.');
+      }
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -333,10 +367,61 @@ export default function UserSettings() {
           Deleting your account is permanent and will remove all your listings, 
           chats, and transaction history. This action cannot be undone.
         </p>
-        <button className="px-6 py-3 bg-white text-red-600 border border-red-200 rounded-xl font-bold text-sm hover:bg-red-600 hover:text-white transition-all">
+        <button 
+          onClick={() => setShowDeleteConfirm(true)}
+          className="px-6 py-3 bg-white text-red-600 border border-red-200 rounded-xl font-bold text-sm hover:bg-red-600 hover:text-white transition-all transition-all flex items-center gap-2"
+        >
+          <Trash2 className="w-4 h-4" />
           Delete My Account
         </button>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">Are you absolutely sure?</h3>
+                <p className="text-gray-500 mb-8">
+                  This will permanently delete your account and all associated data. This action <span className="font-bold text-red-600 underline">cannot</span> be reversed.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting}
+                    className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isDeleting ? (
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -165,11 +165,47 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
+    function isValidTransactionUpdate(data, prevData) {
+      // Allow specific transitions for buyer/seller
+      let isBuyer = data.buyerId == request.auth.uid;
+      let isSeller = data.sellerId == request.auth.uid;
+      
+      // Allowed updates for Buyer/Seller during a deal
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      
+      return (isBuyer || isSeller) && (
+        // Cancellation transition
+        (affectedKeys.hasOnly(['dealStatus', 'status', 'cancelReason', 'cancelledBy', 'cancelledAt']) &&
+         request.resource.data.dealStatus == 'refunded' &&
+         request.resource.data.status == 'disputed' &&
+         request.resource.data.cancelledBy == request.auth.uid) ||
+        
+        // Delivery confirmation (Buyer only)
+        (isBuyer && affectedKeys.hasOnly(['dealStatus', 'rating', 'ratingComment']) &&
+         resource.data.dealStatus == 'asset_transferred' &&
+         request.resource.data.dealStatus == 'buyer_confirmed') ||
+         
+        // Proof submission (Seller only)
+        (isSeller && affectedKeys.hasOnly(['workProofImage', 'workProofNotes', 'dealStatus']) &&
+         (resource.data.dealStatus == 'payment_secured' || resource.data.dealStatus == 'in_escrow') &&
+         request.resource.data.dealStatus == 'asset_transferred') ||
+
+        // Rating Buyer (Seller only)
+        (isSeller && affectedKeys.hasAny(['buyerRating', 'buyerRatingComment']) &&
+         resource.data.dealStatus == 'completed')
+      );
+    }
+
     match /users/{userId} {
       allow read: if true; // Public profiles for marketplace
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role != 'admin';
       allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && 
-                    (isAdmin() || (request.resource.data.role == resource.data.role && request.resource.data.status == resource.data.status));
+                    (isAdmin() || (
+                      request.resource.data.role == resource.data.role && 
+                      request.resource.data.status == resource.data.status &&
+                      // Ensure created_at is immutable if it exists
+                      (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
+                    ));
     }
 
     match /listings/{listingId} {
@@ -218,7 +254,7 @@ service cloud.firestore {
     match /transactions/{transactionId} {
       allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && (request.resource.data.buyerId == request.auth.uid || request.resource.data.sellerId == request.auth.uid);
-      allow update: if isAdmin();
+      allow update: if isAdmin() || isValidTransactionUpdate(resource.data, request.resource.data);
     }
     
     match /gigs/{gigId} {

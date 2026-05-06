@@ -187,15 +187,24 @@ export default function MyPurchases() {
   };
 
   const handleCancelOrder = async (transId: string) => {
-    if (!cancelReason.trim()) {
-      alert('Please provide a reason for cancellation.');
-      return;
-    }
-
     try {
       const transRef = doc(db, 'transactions', transId);
       const transSnap = await getDoc(transRef);
       const transData = transSnap.data() as Transaction;
+
+      // Check if admin has confirmed the payment
+      // Status 'pending' means admin hasn't checked it yet
+      if (transData.status === 'pending') {
+        alert('Payment not confirmed by Admin yet. You cannot cancel until Admin verifies your payment details.');
+        setCancellingId(null);
+        setCancelReason('');
+        return;
+      }
+
+      if (!cancelReason.trim()) {
+        alert('Please provide a reason for cancellation.');
+        return;
+      }
 
       await updateDoc(transRef, {
         dealStatus: 'refunded',

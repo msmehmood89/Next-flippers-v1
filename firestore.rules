@@ -206,6 +206,7 @@ service cloud.firestore {
                       // Ensure created_at is immutable if it exists
                       (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
                     ));
+      allow delete: if isOwner(userId);
     }
 
     match /listings/{listingId} {

@@ -32,34 +32,71 @@ export default function UserSettings() {
   const [success, setSuccess] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [requiresRecentLogin, setRequiresRecentLogin] = useState(false);
   const navigate = useNavigate();
 
   const handleDeleteAccount = async () => {
     if (!user) return;
     setIsDeleting(true);
+    setDeleteError('');
 
     try {
-      // 1. Delete from Firestore
-      await deleteDoc(doc(db, 'users', user.uid));
+      // 1. Attempt to delete Auth user first (this is the most likely to fail if not recently logged in)
+      // If this succeeds, we then delete the Firestore doc. 
+      // Note: Firebase deleteUser works best if doc is already gone in some cases, but here 
+      // we need the token.
       
-      // 2. Delete from Auth
       await deleteUser(user);
+      
+      // 2. Delete from Firestore (if auth delete somehow doesn't revoke token immediately, or we do it quickly)
+      // Actually, standard practice is delete data first.
+      // But if we delete data and then deleteUser fails with re-auth, data is lost.
+      // So we'll try data first, but if auth fails, we show re-auth.
+      
+      await deleteDoc(doc(db, 'users', user.uid));
       
       // 3. Navigate home
       navigate('/');
     } catch (error: any) {
       console.error('Error deleting account:', error);
       if (error.code === 'auth/requires-recent-login') {
-        alert('For security reasons, you need to log in again before deleting your account.');
-        // Sign out so they can log back in
-        auth.signOut();
-        navigate('/login');
+        setRequiresRecentLogin(true);
+        setDeleteError('For security, please re-verify your identity to complete deletion.');
       } else {
-        alert('Failed to delete account. Please try again later.');
+        setDeleteError(error.message || 'Failed to delete account. Please try again later.');
       }
     } finally {
       setIsDeleting(false);
-      setShowDeleteConfirm(false);
+      if (!requiresRecentLogin && !deleteError) {
+        setShowDeleteConfirm(false);
+      }
+    }
+  };
+
+  const handleReauthenticate = async () => {
+    if (!user) return;
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      // Force a re-login via popup
+      const { GoogleAuthProvider, reauthenticateWithPopup, signInWithPopup } = await import('firebase/auth');
+      const provider = new GoogleAuthProvider();
+      
+      console.log('Attempting re-authentication...');
+      await reauthenticateWithPopup(user, provider);
+      
+      // If success, try deleting again automatically
+      await deleteDoc(doc(db, 'users', user.uid));
+      await deleteUser(user);
+      
+      navigate('/');
+    } catch (error: any) {
+      console.error('Re-auth error:', error);
+      setDeleteError('Re-verification failed. Please try again.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -390,32 +427,76 @@ export default function UserSettings() {
                 <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <AlertCircle className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">Are you absolutely sure?</h3>
-                <p className="text-gray-500 mb-8">
-                  This will permanently delete your account and all associated data. This action <span className="font-bold text-red-600 underline">cannot</span> be reversed.
+                <h3 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">
+                  {requiresRecentLogin ? 'Security Verification' : 'Are you absolutely sure?'}
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  {requiresRecentLogin 
+                    ? 'To delete your account, we need you to sign in one more time to verify your identity. Click the button below to re-authenticate with Google.'
+                    : 'This will permanently delete your account and all associated data. This action cannot be reversed.'}
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    disabled={isDeleting}
-                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDeleteAccount}
-                    disabled={isDeleting}
-                    className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {isDeleting ? (
-                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
-                    )}
-                    {isDeleting ? 'Deleting...' : 'Yes, Delete'}
-                  </button>
+                {deleteError && (
+                  <div className="mb-6 p-4 bg-red-50 text-red-600 text-xs rounded-xl border border-red-100 font-bold">
+                    {deleteError}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-4">
+                  {requiresRecentLogin ? (
+                    <button
+                      onClick={handleReauthenticate}
+                      disabled={isDeleting}
+                      className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isDeleting ? (
+                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <Shield className="w-5 h-5" />
+                      )}
+                      {isDeleting ? 'Verifying...' : 'Verify with Google & Delete'}
+                    </button>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <button
+                        onClick={() => {
+                          setShowDeleteConfirm(false);
+                          setDeleteError('');
+                          setRequiresRecentLogin(false);
+                        }}
+                        disabled={isDeleting}
+                        className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleDeleteAccount}
+                        disabled={isDeleting}
+                        className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {isDeleting ? (
+                          <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                        {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                      </button>
+                    </div>
+                  )}
+
+                  {requiresRecentLogin && (
+                    <button
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setRequiresRecentLogin(false);
+                        setDeleteError('');
+                      }}
+                      className="text-gray-400 text-sm font-bold hover:text-gray-600"
+                    >
+                      Cancel Deletion
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>

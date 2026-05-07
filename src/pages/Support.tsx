@@ -323,7 +323,7 @@ export default function Support() {
               <h3 className="text-xl font-black mb-6">Quick Contact</h3>
               <div className="space-y-6">
                 <a 
-                  href="https://wa.me/923057341215" 
+                  href="https://wa.me/923330758018" 
                   target="_blank" 
                   rel="noreferrer"
                   className="flex items-center gap-4 p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all group"
@@ -333,7 +333,7 @@ export default function Support() {
                   </div>
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-widest opacity-60">WhatsApp Support</div>
-                    <div className="text-sm font-bold">+92 305 7341215</div>
+                    <div className="text-sm font-bold">+92 333 0758018</div>
                   </div>
                 </a>
                 <div className="flex items-center gap-4 px-4">
@@ -342,7 +342,7 @@ export default function Support() {
                   </div>
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Email Us</div>
-                    <div className="text-sm font-bold">support@flippersclub.com</div>
+                    <div className="text-sm font-bold">support@nextflippers.com</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -402,7 +402,7 @@ export default function Support() {
                 <span className="text-sm font-black uppercase tracking-widest">Safety Tip</span>
               </div>
               <p className="text-xs text-amber-700 font-bold leading-relaxed">
-                Never share your password or payment details outside of our secure platform. Next Flippers staff will never ask for your login credentials.
+                Never share your password or payment details outside of our secure platform. NextFlippers staff will never ask for your login credentials.
               </p>
             </motion.div>
           </div>

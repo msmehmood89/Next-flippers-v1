@@ -28,6 +28,9 @@ import SetupUsername from './pages/SetupUsername';
 import Support from './pages/Support';
 import Receipt from './pages/Receipt';
 import Statistics from './pages/Statistics';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import Contact from './pages/Contact';
 import { CartProvider } from './contexts/CartContext';
 import Cart from './pages/Cart';
 import ProfileView from './pages/ProfileView';
@@ -230,6 +233,9 @@ export default function App() {
                 } />
                 <Route path="/listing/:id" element={<ListingDetails />} />
                 <Route path="/support" element={<Support />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/contact" element={<Contact />} />
                 <Route path="/profile/:username" element={<ProfileView />} />
                 <Route path="/statistics/:userId" element={<Statistics />} />
                 <Route path="/login" element={<Login />} />

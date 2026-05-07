@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { 
   Globe, Twitter, Github, Linkedin, 
-  Mail, Phone, MapPin, Shield, CheckCircle2 
+  Mail, Phone, MapPin, Shield, CheckCircle2,
+  MessageCircle
 } from 'lucide-react';
 import Logo from './Logo';
 
@@ -45,11 +46,18 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6">Support</h3>
             <ul className="space-y-4">
-              {['Help Center', 'Safety & Trust', 'Escrow Process', 'Terms of Service', 'Privacy Policy'].map(item => (
-                <li key={item}>
-                  <Link to="/support" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">{item}</Link>
-                </li>
-              ))}
+              <li>
+                <Link to="/contact" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Help Center</Link>
+              </li>
+              <li>
+                <Link to="/how-it-works" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">How it Works</Link>
+              </li>
+              <li>
+                <Link to="/terms" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Terms of Service</Link>
+              </li>
+              <li>
+                <Link to="/privacy" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Privacy Policy</Link>
+              </li>
             </ul>
           </div>
 
@@ -62,12 +70,21 @@ export default function Footer() {
                 <span>support@nextflippers.com</span>
               </li>
               <li className="flex items-start gap-3 text-sm text-gray-500">
-                <Phone className="w-5 h-5 text-indigo-600 flex-shrink-0" />
-                <span>+1 (555) 123-4567</span>
+                <div className="p-1 bg-green-50 rounded flex-shrink-0">
+                  <MessageCircle className="w-4 h-4 text-green-600" />
+                </div>
+                <a 
+                  href="https://wa.me/923330758018" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:text-green-600 font-medium"
+                >
+                  +92 333 0758018 (WhatsApp)
+                </a>
               </li>
               <li className="flex items-start gap-3 text-sm text-gray-500">
                 <MapPin className="w-5 h-5 text-indigo-600 flex-shrink-0" />
-                <span>123 Marketplace Ave, Digital City, DC 10101</span>
+                <span>Digital City, Pakistan</span>
               </li>
             </ul>
           </div>

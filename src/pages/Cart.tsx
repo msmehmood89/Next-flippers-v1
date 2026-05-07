@@ -6,7 +6,7 @@ import { formatCurrency, cn, createNotification } from '../lib/utils';
 import { emailService } from '../services/emailService';
 import { 
   Trash2, ShoppingBag, ArrowRight, ShieldCheck, 
-  CreditCard, Globe, Briefcase, AlertCircle, DollarSign 
+  Globe, Briefcase, CreditCard, DollarSign
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -17,79 +17,45 @@ export default function Cart() {
   const { cart, removeFromCart, clearCart, cartCount } = useCart();
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'binance' | 'crypto'>('bank');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const total = cart.reduce((acc, item) => acc + item.price, 0);
+  const selectedItems = cart.filter(item => selectedIds.includes(item.id));
+  const total = selectedItems.reduce((acc, item) => acc + item.price, 0);
   const platformFee = total * 0.05; // 5% total platform fee example
   const finalTotal = total + platformFee;
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   const handleCheckout = async () => {
-    if (!user || cart.length === 0) return;
-
-    setIsProcessing(true);
-    try {
-      const transactions = [];
-
-      for (const item of cart) {
-        const transData = {
-          listingId: item.type === 'listing' ? item.id : null,
-          gigId: item.type === 'gig' ? item.id : null,
-          buyerId: user.uid,
-          sellerId: item.sellerId,
-          salePrice: item.price,
-          platformFee: item.price * 0.05,
-          commissionAmount: item.price * 0.1, // 10% example commission
-          totalPaid: item.price * 1.05,
-          paymentMethod,
-          dealStatus: 'payment_pending',
-          status: 'pending',
-          createdAt: serverTimestamp(),
-        };
-
-        const docRef = await addDoc(collection(db, 'transactions'), transData);
-        transactions.push({ id: docRef.id, ...item });
-
-        // Notify Seller
-        await createNotification(
-          item.sellerId,
-          'New Order Received! 📦',
-          `You have a new order for "${item.title}". Check your sales dashboard for payment confirmation.`,
-          'system',
-          '/dashboard/sales'
-        );
-      }
-
-      // Final notification for user
-      await createNotification(
-        user.uid,
-        'Checkout Successful! 🎉',
-        `Your order for ${cart.length} items has been placed. Please follow the individual payment instructions.`,
-        'system',
-        '/dashboard/purchases'
-      );
-
-      clearCart();
-      
-      // Navigate to payment instructions with all transaction IDs
-      const txIds = transactions.map(t => t.id).join(',');
-      
-      // Send invoice email
-      if (user?.email) {
-        await emailService.sendInvoice(user.email, {
-          orderId: txIds.split(',')[0].slice(-6).toUpperCase(), // Using first transaction ID as order reference
-          amount: finalTotal.toFixed(2),
-          items: cart.map(i => ({ title: i.title, price: i.price }))
-        });
-      }
-
-      navigate(`/payment/instructions?txIds=${txIds}`);
-
-    } catch (error) {
-      console.error('Checkout error:', error);
-      alert('Something went wrong during checkout. Please try again.');
-    } finally {
-      setIsProcessing(false);
+    if (!user) {
+      navigate('/login');
+      return;
     }
+
+    if (selectedItems.length === 0) {
+      alert('Please select at least one item to proceed.');
+      return;
+    }
+
+    // If only one item is selected, act exactly like the ListingDetail "Buy" button:
+    // Instant navigation without creating transactions first.
+    if (selectedItems.length === 1) {
+      const item = selectedItems[0];
+      const route = item.type === 'listing' ? `/payment/${item.id}` : `/payment/gig/${item.id}`;
+      navigate(route);
+      return;
+    }
+
+    // For multiple items, navigate instantly to the instructions page
+    // with listing and gig IDs. The payment page now handles fetching and processing.
+    const listingIds = selectedItems.filter(i => i.type === 'listing').map(i => i.id).join(',');
+    const gigIds = selectedItems.filter(i => i.type === 'gig').map(i => i.id).join(',');
+    
+    navigate(`/payment/instructions?listingIds=${listingIds}&gigIds=${gigIds}`);
   };
 
   if (cartCount === 0) {
@@ -118,9 +84,20 @@ export default function Cart() {
         {/* Cart Items List */}
         <div className="flex-grow space-y-8">
           <header className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-black text-gray-900 tracking-tight">Shopping Cart</h1>
-              <p className="text-gray-500 mt-1 font-medium">{cartCount} items in your basket</p>
+            <div className="flex items-center gap-4">
+              <input 
+                type="checkbox"
+                checked={cart.length > 0 && selectedIds.length === cart.length}
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedIds(cart.map(i => i.id));
+                  else setSelectedIds([]);
+                }}
+                className="w-5 h-5 rounded border-gray-200 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+              <div>
+                <h1 className="text-4xl font-black text-gray-900 tracking-tight">Shopping Cart</h1>
+                <p className="text-gray-500 mt-1 font-medium">{cartCount} items in your basket</p>
+              </div>
             </div>
             <button 
               onClick={() => {
@@ -144,6 +121,15 @@ export default function Cart() {
                   exit={{ opacity: 0, x: -20 }}
                   className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex items-center gap-6 group"
                 >
+                  <div className="flex-shrink-0">
+                    <input 
+                      type="checkbox"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      className="w-6 h-6 rounded-lg border-gray-200 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                  </div>
+
                   <div className="w-24 h-24 bg-gray-50 rounded-2xl overflow-hidden flex-shrink-0 border border-gray-100">
                     <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   </div>
@@ -200,7 +186,7 @@ export default function Cart() {
             
             <div className="space-y-4">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500 font-medium">Subtotal</span>
+                <span className="text-gray-500 font-medium">Subtotal ({selectedItems.length} items)</span>
                 <span className="font-bold text-gray-900">{formatCurrency(total)}</span>
               </div>
               <div className="flex justify-between text-sm">
@@ -211,35 +197,6 @@ export default function Cart() {
                 <span className="text-base font-black text-gray-900">Total</span>
                 <span className="text-2xl font-black text-indigo-600 tracking-tight">{formatCurrency(finalTotal)}</span>
               </div>
-            </div>
-
-            {/* Payment Method */}
-            <div className="space-y-4">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Choose Multi-Payment Method</label>
-              <div className="grid grid-cols-1 gap-2">
-                {[
-                  { id: 'bank', label: 'Local Bank / JazzCash', icon: CreditCard },
-                  { id: 'binance', label: 'Binance Pay', icon: DollarSign },
-                  { id: 'crypto', label: 'USDT (TRC-20)', icon: Globe },
-                ].map((method) => (
-                  <button
-                    key={method.id}
-                    onClick={() => setPaymentMethod(method.id as any)}
-                    className={cn(
-                      "flex items-center gap-3 w-full px-4 py-3 rounded-2xl border text-left transition-all",
-                      paymentMethod === method.id 
-                        ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100" 
-                        : "bg-white border-gray-100 text-gray-500 hover:border-indigo-200"
-                    )}
-                  >
-                    <method.icon className={cn("w-5 h-5", paymentMethod === method.id ? "text-white" : "text-gray-400")} />
-                    <span className="text-sm font-bold">{method.label}</span>
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-gray-400 italic mt-2">
-                * checkout creates individual transactions. You will pay for each item to our admin account.
-              </p>
             </div>
 
             <button
@@ -254,8 +211,17 @@ export default function Cart() {
                 </>
               ) : (
                 <>
-                  Secure Checkout
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  {selectedItems.length > 1 ? (
+                    <>
+                      Buy These Services
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  ) : (
+                    <>
+                      <DollarSign className="w-5 h-5" />
+                      Buy This Service
+                    </>
+                  )}
                 </>
               )}
             </button>

@@ -241,10 +241,22 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.email == "ms.mehmood749@gmail.com");
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        (resource.data.userId == 'admin' && isAdmin()) ||
+        request.auth.token.email == "ms.mehmood749@gmail.com"
+      );
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.email == "ms.mehmood749@gmail.com");
-      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.email == "ms.mehmood749@gmail.com");
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        (resource.data.userId == 'admin' && isAdmin()) ||
+        request.auth.token.email == "ms.mehmood749@gmail.com"
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        (resource.data.userId == 'admin' && isAdmin()) ||
+        request.auth.token.email == "ms.mehmood749@gmail.com"
+      );
     }
 
     match /settings/{settingId} {

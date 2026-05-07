@@ -4,11 +4,21 @@ import path from "path";
 import cors from "cors";
 import { Resend } from "resend";
 import dotenv from "dotenv";
+import Stripe from "stripe";
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
+
+// Initialize Stripe (Lazy initialization is better, but this handles basic setup)
+let stripe: Stripe | null = null;
+const getStripe = () => {
+  if (!stripe && process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripe;
+};
 
 // Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -196,6 +206,58 @@ app.post("/api/email/approval", async (req, res) => {
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ error: "Failed to send approval email" });
+  }
+});
+
+// 5. Stripe Checkout Session
+app.post("/api/stripe/create-checkout-session", async (req, res) => {
+  const { items, successUrl, cancelUrl, customerEmail } = req.body;
+  console.log(`[Stripe] Creating session for ${customerEmail}. Items:`, items?.length);
+  
+  const stripeInstance = getStripe();
+  if (!stripeInstance) {
+    console.error("[Stripe] Secret key not found.");
+    return res.status(500).json({ error: "Stripe configuration missing on server." });
+  }
+
+  try {
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      throw new Error("No items provided for checkout.");
+    }
+
+    const lineItems = items.map((item: any, index: number) => {
+      const priceVal = parseFloat(item.price);
+      if (isNaN(priceVal) || priceVal <= 0) {
+        throw new Error(`Invalid price for item ${index + 1}: ${item.title || 'Unknown'}`);
+      }
+      
+      return {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: item.title || "Digital Asset",
+            images: item.image && item.image.startsWith('http') && item.image.length < 2000 ? [item.image] : [],
+          },
+          unit_amount: Math.round(priceVal * 1.07 * 100), 
+        },
+        quantity: 1,
+      };
+    });
+
+    const session = await stripeInstance.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: lineItems,
+      mode: "payment",
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      customer_email: customerEmail || undefined,
+    });
+
+    console.log(`[Stripe] Session created: ${session.id}`);
+    res.json({ url: session.url });
+  } catch (error: any) {
+    console.error("[Stripe] Error:", error.message);
+    res.status(500).json({ error: error.message || "Failed to create Stripe session" });
   }
 });
 

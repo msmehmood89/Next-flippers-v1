@@ -5,13 +5,18 @@ import { db } from '../../firebase';
 import { Transaction, Listing, UserProfile } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, Search, ChevronRight, Clock, CheckCircle2, AlertCircle, FileText, ChevronDown, MessageSquare, ImageIcon, ExternalLink, Star, X, Shield } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency, cn, createNotification } from '../../lib/utils';
+import { useCart } from '../../contexts/CartContext';
 import DealStatusBar from '../../components/DealStatusBar';
 
 export default function MyPurchases() {
   const { user } = useAuth();
+  const { clearCart } = useCart();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isSuccess = searchParams.get('status') === 'success';
+
   const [transactions, setTransactions] = useState<(Transaction & { listing?: Listing })[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -67,7 +72,10 @@ export default function MyPurchases() {
 
   useEffect(() => {
     fetchPurchases();
-  }, [user]);
+    if (isSuccess) {
+      clearCart();
+    }
+  }, [user, isSuccess]);
 
   const [isContacting, setIsContacting] = useState(false);
 
@@ -285,6 +293,18 @@ export default function MyPurchases() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">My Orders</h1>
         <p className="text-gray-500">Track your active escrow deals and purchase history.</p>
       </header>
+
+      {isSuccess && (
+        <div className="bg-green-50 border border-green-100 rounded-2xl p-6 flex items-center gap-4 animate-in fade-in slide-in-from-top-4">
+          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="font-bold text-green-900">Payment Successful!</h4>
+            <p className="text-sm text-green-700">Thank you for your purchase. Your order is now being processed.</p>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (

@@ -4,37 +4,40 @@ import { initializeFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
+// Initialize Firebase app
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with force long polling to bypass WebSocket issues in the AI Studio environment
-// We also disable auto-detect and streams to ensure it sticks to standard long polling immediately
-// which is more compatible with older browsers and corporate/school networks.
+// Initialize Firestore with settings optimized for restricted network environments (like iFrames or corporate proxies)
+// We use force long polling to avoid WebSocket/gRPC-web connection issues.
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-  experimentalAutoDetectLongPolling: false,
 }, firebaseConfig.firestoreDatabaseId || '(default)');
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-// Explicitly set persistence to local to ensure sessions persist correctly within the iframe
+// Use local persistence to maintain user sessions reliably within the application frame
 setPersistence(auth, browserLocalPersistence).catch(err => {
-  console.error("Firebase persistence error:", err);
+  console.error("Firebase persistence setup failed:", err);
 });
 
-// Test connection and log errors clearly
-async function testConnection() {
+/**
+ * Validates the Firestore connection on startup.
+ * Logs success or specific failure insights to help with debugging.
+ */
+async function verifyConnection() {
   try {
-    // Attempting to fetch a non-existent document just to check connectivity
-    await getDocFromServer(doc(db, '_connection_test_', 'check'));
-    console.log("Firestore connection successful (long polling enabled)");
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Firestore connection failed: The client is offline or the backend is unreachable. Please check your Firebase configuration and internet connection.");
-    } else {
-      console.warn("Firestore connection check produced an expected error or transient issue:", error);
-    }
+    // Attempting a server-side only fetch to verify connectivity beyond local cache
+    await getDocFromServer(doc(db, '_health_check_', 'ping'));
+    console.log("Firestore connection verified successfully.");
+  } catch (error: any) {
+    // Treat 'not-found' as a successful network reach
+    if (error?.code === 'not-found') return;
+    
+    // Log as a warning since the SDK will usually continue to retry in the background
+    console.warn("Firestore connectivity notice: The backend is currently unreachable. The app will work in offline mode until connection is established.", error?.message);
   }
 }
 
-testConnection();
+// Perform the connectivity check
+verifyConnection();

@@ -63,55 +63,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-      if (firebaseUser) {
-        // Update last active immediately on login
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        updateDoc(userRef, { lastActiveAt: serverTimestamp() }).catch(console.error);
-
-        // Listen to profile changes
-        const unsubProfile = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setProfile({ uid: docSnap.id, ...docSnap.data() } as UserProfile);
-          }
-          setLoading(false);
-        }, (error) => {
-          console.error("Profile snapshot error:", error);
-          setLoading(false);
-        });
-
-        // Listen to notifications
-        const notificationTargets = [firebaseUser.uid];
-        const isUserAdmin = !!profile?.isAdmin || firebaseUser.email === 'ms.mehmood749@gmail.com';
-        if (isUserAdmin) {
-          notificationTargets.push('admin');
-        }
-
-        const q = query(
-          collection(db, 'notifications'),
-          where('userId', 'in', notificationTargets),
-          orderBy('createdAt', 'desc'),
-          limit(30)
-        );
-        const unsubNotifs = onSnapshot(q, (snapshot) => {
-          const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
-          setNotifications(notifs);
-        }, (error) => {
-          console.error("Notifications snapshot error:", error);
-        });
-
-        return () => {
-          unsubProfile();
-          unsubNotifs();
-        };
-      } else {
+      if (!firebaseUser) {
         setProfile(null);
         setNotifications([]);
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    // Fallback timeout to ensure the application doesn't stay stuck on a loading spinner
+    // if the connection to Firebase is delayed or restricted within the iFrame.
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 10000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(loadingTimeout);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const userRef = doc(db, 'users', user.uid);
+    
+    // Listen to profile changes
+    const unsubProfile = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setProfile({ uid: docSnap.id, ...docSnap.data() } as UserProfile);
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Profile snapshot error:", error);
+      setLoading(false);
+    });
+
+    return () => unsubProfile();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Listen to notifications
+    const notificationTargets = [user.uid];
+    const isUserAdmin = profile?.role === 'admin' || profile?.isAdmin || user.email === 'ms.mehmood749@gmail.com';
+    
+    if (isUserAdmin) {
+      notificationTargets.push('admin');
+    }
+
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', 'in', notificationTargets),
+      orderBy('createdAt', 'desc'),
+      limit(30)
+    );
+
+    const unsubNotifs = onSnapshot(q, (snapshot) => {
+      const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+      setNotifications(notifs);
+    }, (error) => {
+      console.error("Notifications snapshot error:", error);
+    });
+
+    return () => unsubNotifs();
+  }, [user, profile]);
 
   // Update lastActiveAt on route changes
   const location = useLocation();

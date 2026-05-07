@@ -174,6 +174,10 @@ service cloud.firestore {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
       
       return (isBuyer || isSeller) && (
+        // Payment submission (Buyer only) - Allow updating proof or picking method
+        (isBuyer && affectedKeys.hasAny(['paymentMethod', 'paymentProofImage', 'dealStatus', 'status', 'updatedAt']) &&
+         affectedKeys.hasOnly(['paymentMethod', 'paymentProofImage', 'dealStatus', 'status', 'updatedAt'])) ||
+        
         // Cancellation transition
         (affectedKeys.hasOnly(['dealStatus', 'status', 'cancelReason', 'cancelledBy', 'cancelledAt']) &&
          request.resource.data.dealStatus == 'refunded' &&

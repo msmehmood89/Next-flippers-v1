@@ -239,13 +239,14 @@ export default function PaymentInstructions() {
   const handleStripePayment = async () => {
     if (!user) return;
     setSubmitting(true);
+    console.log('[Payment] Starting Stripe payment flow...');
     
     // Recalculate values inside to be sure they are fresh and handle hoisting/closure concerns
     const currentPrice = getPrice();
     const currentItemTitle = (batchTransactions.length > 0 || cartItems.length > 0)
       ? `${(batchTransactions.length || cartItems.length)} Items (Batch Order)` 
       : (listing ? listing.title : gig?.title || 'Digital Asset');
-    const currentItemImage = listing ? listing.images[0] : (gig ? gig.images[0] : (cartItems.length > 0 ? cartItems[0].images?.[0] : null));
+    const currentItemImage = listing ? listing.images[0] : (gig ? gig.images[0] : (cartItems.length > 0 ? (cartItems[0].images?.[0] || cartItems[0].image) : null));
 
     try {
       let finalTxIdsArr: string[] = [];
@@ -253,6 +254,7 @@ export default function PaymentInstructions() {
       // If we have items from cart (drafts), we MUST create transactions FIRST before Stripe
       // so Stripe can update them on success via webhook/success page logic if needed.
       if (cartItems.length > 0) {
+        console.log('[Payment] Creating transactions for cart items...', cartItems.length);
         for (const item of cartItems) {
           const price = item.type === 'listing' ? item.askingPrice : item.price;
           const { platformFee, transactionFee, total: commissionTotal } = calculateCommission(price);
@@ -262,7 +264,7 @@ export default function PaymentInstructions() {
             listingId: item.type === 'listing' ? item.id : null,
             gigId: item.type === 'gig' ? item.id : null,
             buyerId: user.uid,
-            sellerId: item.userId,
+            sellerId: item.userId || item.sellerId || 'unknown',
             salePrice: price,
             platformFee,
             transactionFee,
@@ -279,6 +281,7 @@ export default function PaymentInstructions() {
           const txDoc = await addDoc(collection(db, 'transactions'), transactionData);
           finalTxIdsArr.push(txDoc.id);
         }
+        console.log('[Payment] Transactions created:', finalTxIdsArr);
       } else if (batchTransactions.length > 0) {
         finalTxIdsArr = batchTransactions.map(t => t.id);
       }
@@ -288,6 +291,7 @@ export default function PaymentInstructions() {
             id: finalTxIdsArr[idx],
             title: item.title || 'Cart Item',
             price: (item as any).askingPrice || (item as any).price || (item as any).salePrice,
+            image: item.images?.[0] || item.image || null,
           }))
         : [{
             id: listing?.id || gig?.id,
@@ -297,14 +301,19 @@ export default function PaymentInstructions() {
           }];
 
       const txIdsString = finalTxIdsArr.length > 0 ? finalTxIdsArr.join(',') : (listingId || gigId);
+      console.log('[Payment] Creating Stripe checkout session...', { itemCount: itemsForStripe.length, email: user.email });
+      
       const checkoutUrl = await stripeService.createCheckoutSession(itemsForStripe, user.email || '', txIdsString || undefined);
       
       if (!checkoutUrl) {
         throw new Error("No checkout URL returned from server.");
       }
 
+      console.log('[Payment] Success! Redirecting to:', checkoutUrl);
+
       // Update existing batch transactions to stripe if they aren't new ones
       if (batchTransactions.length > 0) {
+        console.log('[Payment] Updating existing batch transactions...');
         const batch = writeBatch(db);
         batchTransactions.forEach(tx => {
           batch.update(doc(db, 'transactions', tx.id), { paymentMethod: 'stripe' });

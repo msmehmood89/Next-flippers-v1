@@ -222,12 +222,17 @@ app.post("/api/stripe/create-checkout-session", async (req, res) => {
 
   try {
     if (!items || !Array.isArray(items) || items.length === 0) {
+      console.error("[Stripe] No items provided");
       throw new Error("No items provided for checkout.");
     }
 
+    console.log("[Stripe] Preparling line items...");
     const lineItems = items.map((item: any, index: number) => {
-      const priceVal = parseFloat(item.price);
+      const rawPrice = item.askingPrice || item.price || item.salePrice;
+      const priceVal = parseFloat(rawPrice);
+      
       if (isNaN(priceVal) || priceVal <= 0) {
+        console.error(`[Stripe] Invalid price for item ${index}:`, item);
         throw new Error(`Invalid price for item ${index + 1}: ${item.title || 'Unknown'}`);
       }
       
@@ -236,13 +241,15 @@ app.post("/api/stripe/create-checkout-session", async (req, res) => {
           currency: "usd",
           product_data: {
             name: item.title || "Digital Asset",
-            images: item.image && item.image.startsWith('http') && item.image.length < 2000 ? [item.image] : [],
+            images: item.image && typeof item.image === 'string' && item.image.startsWith('http') && item.image.length < 2000 ? [item.image] : [],
           },
           unit_amount: Math.round(priceVal * 1.07 * 100), 
         },
         quantity: 1,
       };
     });
+
+    console.log("[Stripe] Line items prepared:", lineItems.length);
 
     const session = await stripeInstance.checkout.sessions.create({
       payment_method_types: ["card"],

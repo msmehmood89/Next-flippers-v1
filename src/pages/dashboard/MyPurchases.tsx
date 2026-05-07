@@ -31,6 +31,36 @@ export default function MyPurchases() {
     if (!user) return;
     setLoading(true);
     try {
+      // Handle automatic verification for Stripe success
+      const txIdsToVerify = searchParams.get('txIds');
+      if (isSuccess && txIdsToVerify) {
+        const ids = txIdsToVerify.split(',');
+        for (const id of ids) {
+          const txRef = doc(db, 'transactions', id);
+          const txSnap = await getDoc(txRef);
+          if (txSnap.exists() && (txSnap.data() as Transaction).status === 'pending') {
+            await updateDoc(txRef, {
+              status: 'verified',
+              dealStatus: 'payment_secured',
+              updatedAt: serverTimestamp()
+            });
+            
+            // Notify seller
+            const txData = txSnap.data() as Transaction;
+            await createNotification(
+              txData.sellerId,
+              'Payment Verified! 💰',
+              `The payment for order #${id.slice(-6).toUpperCase()} has bee verified. You can now start fulfillment.`,
+              'payment_verified',
+              '/dashboard/sales'
+            );
+          }
+        }
+        // Redirect to same page without success params to prevent re-run
+        navigate('/dashboard/purchases', { replace: true });
+        return;
+      }
+
       const q = query(
         collection(db, 'transactions'),
         where('buyerId', '==', user.uid),

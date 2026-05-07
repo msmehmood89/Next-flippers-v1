@@ -137,6 +137,9 @@ export default function Register() {
       const emailResult = await emailService.sendOTP(formData.email, otp, 'verification');
       
       if (emailResult.error) {
+        if (emailResult.error.includes('RESEND_API_KEY')) {
+          throw new Error('System Error: Email API Key is missing. Please set RESEND_API_KEY in the Secrets menu (Gear Icon -> Secrets).');
+        }
         throw new Error(emailResult.error);
       }
 
@@ -184,7 +187,11 @@ export default function Register() {
       }
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Google login failed');
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('Login cancelled. Please finish the sign-in in the Google popup.');
+      } else {
+        setError(err.message || 'Google login failed');
+      }
     }
   };
 

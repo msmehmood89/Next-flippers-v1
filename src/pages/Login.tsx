@@ -54,7 +54,11 @@ export default function Login() {
       }
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Google login failed');
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('Login cancelled. Please finish the sign-in in the Google popup.');
+      } else {
+        setError(err.message || 'Google login failed');
+      }
     }
   };
 

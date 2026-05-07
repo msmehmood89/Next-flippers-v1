@@ -30,10 +30,14 @@ export const emailService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp, type }),
       });
-      return await response.json();
-    } catch (err) {
+      const data = await response.json();
+      if (!response.ok) {
+        return { error: data.error || 'Failed to send OTP' };
+      }
+      return data;
+    } catch (err: any) {
       console.error("OTP email service error:", err);
-      return { error: true };
+      return { error: err.message || 'Network error' };
     }
   },
 

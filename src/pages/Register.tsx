@@ -137,7 +137,7 @@ export default function Register() {
       const emailResult = await emailService.sendOTP(formData.email, otp, 'verification');
       
       if (emailResult.error) {
-        throw new Error('Failed to send verification email. Please check your email address.');
+        throw new Error(emailResult.error);
       }
 
       setShowVerification(true);

@@ -17,6 +17,7 @@ import { formatCurrency, cn, getOnlineStatus } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import ProfileAvatar from '../components/ProfileAvatar';
 import ReactMarkdown from 'react-markdown';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function ListingDetails() {
   const { id } = useParams();
@@ -191,7 +192,7 @@ export default function ListingDetails() {
     setSubmittingFeedback(false);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <LoadingScreen />;
   if (!listing) return <div className="p-20 text-center">Listing not found.</div>;
 
   const stats = (listing.type === 'website' || !listing.type) ? [

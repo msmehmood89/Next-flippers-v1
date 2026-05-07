@@ -6,6 +6,7 @@ import { auth, db } from '../firebase';
 import { emailService } from '../services/emailService';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Lock, Phone, ArrowRight, ShieldCheck, Globe, Users, Briefcase, ShoppingBag, AlertCircle, Chrome } from 'lucide-react';
+import LoadingScreen from '../components/LoadingScreen';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 
@@ -27,6 +28,8 @@ export default function Register() {
   const [verificationCode, setVerificationCode] = useState('');
   const [generatedOTP, setGeneratedOTP] = useState('');
   const navigate = useNavigate();
+
+  if (loading) return <LoadingScreen />;
 
   const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -65,7 +68,8 @@ export default function Register() {
           websitesSold: 0,
           totalSales: 0,
           totalPurchases: 0,
-          responseTime: 'N/A'
+          responseTime: 'N/A',
+          needsProfileSetup: false
         });
         
         await emailService.sendWelcome(formData.email, formData.name);
@@ -174,7 +178,8 @@ export default function Register() {
           websitesSold: 0,
           totalSales: 0,
           totalPurchases: 0,
-          responseTime: 'N/A'
+          responseTime: 'N/A',
+          needsProfileSetup: true
         });
       }
       navigate('/dashboard');

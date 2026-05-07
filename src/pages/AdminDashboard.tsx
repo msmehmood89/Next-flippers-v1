@@ -218,8 +218,26 @@ export default function AdminDashboard() {
       
       await updateDoc(transRef, updateData);
       
+      // Get buyer profile for email
+      const buyerRef = doc(db, 'users', transData.buyerId);
+      const buyerSnap = await getDoc(buyerRef);
+      const buyerProfile = buyerSnap.exists() ? buyerSnap.data() as UserProfile : null;
+
       // Notify parties
       if (dealStatus === 'payment_secured') {
+        // Send Invoice Email via Resend
+        if (buyerProfile?.email) {
+          const itemTitle = transData.type === 'listing' 
+            ? listings.find(l => l.id === transData.listingId)?.title || 'Digital Asset'
+            : gigs.find(g => g.id === transData.gigId)?.title || 'Digital Service';
+
+          await emailService.sendInvoice(buyerProfile.email, {
+            orderId: id.slice(-6).toUpperCase(),
+            amount: transData.totalPaid.toString(),
+            items: [{ title: itemTitle, price: transData.salePrice.toString() }]
+          });
+        }
+
         await createNotification(
           transData.buyerId,
           'Payment Secured! ✅',

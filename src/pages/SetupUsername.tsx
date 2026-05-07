@@ -105,7 +105,8 @@ export default function SetupUsername() {
         websitesSold: profile?.websitesSold || 0,
         totalSales: profile?.totalSales || 0,
         totalPurchases: profile?.totalPurchases || 0,
-        responseTime: profile?.responseTime || 'N/A'
+        responseTime: profile?.responseTime || 'N/A',
+        needsProfileSetup: false
       }, { merge: true });
 
       navigate('/');

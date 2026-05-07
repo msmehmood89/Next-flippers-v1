@@ -5,6 +5,7 @@ import { auth, db } from '../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { motion } from 'motion/react';
 import { Mail, Lock, ArrowRight, Chrome } from 'lucide-react';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -48,6 +49,7 @@ export default function Login() {
           role: 'buyer',
           status: 'active',
           createdAt: serverTimestamp(),
+          needsProfileSetup: true
         });
       }
       navigate('/dashboard');
@@ -55,6 +57,8 @@ export default function Login() {
       setError(err.message || 'Google login failed');
     }
   };
+
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 p-4">

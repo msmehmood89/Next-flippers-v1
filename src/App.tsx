@@ -7,6 +7,7 @@ import { UserProfile, Notification } from './types';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ErrorBoundary from './components/ErrorBoundary';
+import LoadingScreen from './components/LoadingScreen';
 
 // Pages
 import Home from './pages/Home';
@@ -70,11 +71,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Fallback timeout to ensure the application doesn't stay stuck on a loading spinner
-    // if the connection to Firebase is delayed or restricted within the iFrame.
+    // Fallback timeout to ensure the application doesn't stay stuck
+    // if the connection to Firebase is delayed.
     const loadingTimeout = setTimeout(() => {
-      setLoading(false);
-    }, 10000);
+      if (loading) {
+        console.warn("Auth loading timed out. Forcing ready state.");
+        setLoading(false);
+      }
+    }, 5000);
 
     return () => {
       unsubscribe();
@@ -87,6 +91,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const userRef = doc(db, 'users', user.uid);
     
+    // Fast initial load
+    getDoc(userRef).then((docSnap) => {
+      if (docSnap.exists()) {
+        setProfile({ uid: docSnap.id, ...docSnap.data() } as UserProfile);
+        setLoading(false);
+      }
+    }).catch(err => {
+      console.warn("Initial profile fetch failed:", err);
+    });
+
     // Listen to profile changes
     const unsubProfile = onSnapshot(userRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -164,7 +178,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
   return <>{children}</>;
@@ -174,17 +188,10 @@ function UsernameGuard({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   
-  // If user is logged in but doesn't have a complete profile, redirect to setup
-  const isProfileIncomplete = !loading && user && (
-    !profile ||
-    !profile.username || 
-    !profile.whatsappNumber || 
-    !profile.country || 
-    !profile.gender
-  );
+  const isProfileIncomplete = !loading && user && profile && (profile as any).needsProfileSetup === true;
 
   if (isProfileIncomplete && location.pathname !== '/setup-username') {
     return <Navigate to="/setup-username" replace />;
@@ -196,7 +203,7 @@ function UsernameGuard({ children }: { children: React.ReactNode }) {
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading, isAdmin } = useAuth();
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <LoadingScreen />;
   if (!isAdmin) return <Navigate to="/" replace />;
 
   return <>{children}</>;

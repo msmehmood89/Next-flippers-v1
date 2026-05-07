@@ -31,36 +31,6 @@ export default function MyPurchases() {
     if (!user) return;
     setLoading(true);
     try {
-      // Handle automatic verification for Stripe success
-      const txIdsToVerify = searchParams.get('txIds');
-      if (isSuccess && txIdsToVerify) {
-        const ids = txIdsToVerify.split(',');
-        for (const id of ids) {
-          const txRef = doc(db, 'transactions', id);
-          const txSnap = await getDoc(txRef);
-          if (txSnap.exists() && (txSnap.data() as Transaction).status === 'pending') {
-            await updateDoc(txRef, {
-              status: 'verified',
-              dealStatus: 'payment_secured',
-              updatedAt: serverTimestamp()
-            });
-            
-            // Notify seller
-            const txData = txSnap.data() as Transaction;
-            await createNotification(
-              txData.sellerId,
-              'Payment Verified! 💰',
-              `The payment for order #${id.slice(-6).toUpperCase()} has bee verified. You can now start fulfillment.`,
-              'payment_verified',
-              '/dashboard/sales'
-            );
-          }
-        }
-        // Redirect to same page without success params to prevent re-run
-        navigate('/dashboard/purchases', { replace: true });
-        return;
-      }
-
       const q = query(
         collection(db, 'transactions'),
         where('buyerId', '==', user.uid),
@@ -102,10 +72,7 @@ export default function MyPurchases() {
 
   useEffect(() => {
     fetchPurchases();
-    if (isSuccess) {
-      clearCart();
-    }
-  }, [user, isSuccess]);
+  }, [user]);
 
   const [isContacting, setIsContacting] = useState(false);
 
@@ -323,18 +290,6 @@ export default function MyPurchases() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">My Orders</h1>
         <p className="text-gray-500">Track your active escrow deals and purchase history.</p>
       </header>
-
-      {isSuccess && (
-        <div className="bg-green-50 border border-green-100 rounded-2xl p-6 flex items-center gap-4 animate-in fade-in slide-in-from-top-4">
-          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <h4 className="font-bold text-green-900">Payment Successful!</h4>
-            <p className="text-sm text-green-700">Thank you for your purchase. Your order is now being processed.</p>
-          </div>
-        </div>
-      )}
 
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (

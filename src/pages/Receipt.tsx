@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { Transaction, Listing, UserProfile } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion } from 'motion/react';
+import LoadingScreen from '../components/LoadingScreen';
 import { 
   ShieldCheck, Download, Printer, ChevronLeft, 
   CheckCircle2, Clock, Globe, Mail, Phone, ExternalLink
@@ -81,7 +82,7 @@ export default function Receipt() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <LoadingScreen />;
   if (!transaction) return <div className="p-20 text-center">Transaction not found.</div>;
 
   return (

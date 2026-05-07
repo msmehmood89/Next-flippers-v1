@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, cn, getOnlineStatus, resizeImage } from '../lib/utils';
 import ProfileAvatar from '../components/ProfileAvatar';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function ChatPage() {
   const { id } = useParams();
@@ -246,7 +247,7 @@ export default function ChatPage() {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50">

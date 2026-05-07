@@ -13,6 +13,7 @@ import {
 import { formatCurrency, cn, getOnlineStatus } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import FavoriteButton from '../components/FavoriteButton';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function Browse() {
   const navigate = useNavigate();
@@ -102,6 +103,8 @@ export default function Browse() {
 
     fetchListings();
   }, [search, type, category, minPrice, maxPrice, platform, sortBy]);
+
+  if (loading && listings.length === 0) return <LoadingScreen />;
 
   const types = [
     { id: 'all', label: 'All Listings', icon: LayoutGrid },

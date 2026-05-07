@@ -154,7 +154,7 @@ export interface Transaction {
   transactionFee?: number;
   commissionAmount: number;
   totalPaid: number;
-  paymentMethod: 'bank' | 'binance' | 'crypto' | 'stripe' | 'pending';
+  paymentMethod: 'bank' | 'binance' | 'crypto' | 'pending';
   paymentProofImage?: string;
   dealStatus: 'payment_pending' | 'payment_secured' | 'in_escrow' | 'asset_transferred' | 'buyer_confirmed' | 'completed' | 'disputed' | 'refunded';
   status: 'pending' | 'completed' | 'processing' | 'failed' | 'disputed' | 'active';

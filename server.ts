@@ -4,21 +4,11 @@ import path from "path";
 import cors from "cors";
 import { Resend } from "resend";
 import dotenv from "dotenv";
-import Stripe from "stripe";
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
-
-// Initialize Stripe (Lazy initialization is better, but this handles basic setup)
-let stripe: Stripe | null = null;
-const getStripe = () => {
-  if (!stripe && process.env.STRIPE_SECRET_KEY) {
-    stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  }
-  return stripe;
-};
 
 // Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -34,36 +24,59 @@ const getEmailTemplate = (title: string, content: string, ctaText?: string, ctaL
   <html>
     <head>
       <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
-        .container { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #ffffff; }
-        .logo { font-size: 24px; font-weight: 800; color: #4f46e5; text-decoration: none; margin-bottom: 30px; display: block; letter-spacing: -0.02em; }
-        .card { background: #ffffff; border: 1px solid #f1f5f9; border-radius: 24px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); }
-        h1 { color: #0f172a; font-size: 24px; font-weight: 700; margin-top: 0; margin-bottom: 16px; letter-spacing: -0.02em; }
-        p { color: #475569; font-size: 16px; line-height: 1.6; margin-bottom: 24px; }
-        .button { background-color: #4f46e5; color: #ffffff !important; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block; transition: all 0.2s; }
-        .footer { margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9; text-align: center; }
-        .footer-text { color: #94a3b8; font-size: 13px; line-height: 1.4; }
-        .highlight { color: #4f46e5; font-weight: 600; }
-        .otp-box { background: #f8fafc; border-radius: 16px; padding: 24px; text-align: center; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #1e293b; margin: 30px 0; border: 1px dashed #e2e8f0; }
+        body { background-color: #f4f7fa; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+        .wrapper { width: 100%; table-layout: fixed; background-color: #f4f7fa; padding-bottom: 40px; }
+        .main { background-color: #ffffff; margin: 0 auto; width: 100%; max-width: 600px; border-radius: 24px; overflow: hidden; margin-top: 40px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02); }
+        .header { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 40px 20px; text-align: center; }
+        .logo-text { color: #ffffff; font-size: 28px; font-weight: 800; letter-spacing: -0.03em; text-decoration: none; display: inline-flex; align-items: center; }
+        .content { padding: 48px; }
+        h1 { color: #1e293b; font-size: 28px; font-weight: 800; margin-top: 0; margin-bottom: 24px; letter-spacing: -0.02em; line-height: 1.2; }
+        p { color: #475569; font-size: 16px; line-height: 1.7; margin-bottom: 24px; }
+        .button-container { padding: 12px 0 32px; text-align: center; }
+        .button { background-color: #4f46e5; color: #ffffff !important; padding: 16px 36px; border-radius: 14px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; transition: all 0.2s; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3); }
+        .highlight { color: #4f46e5; font-weight: 700; }
+        .otp-box { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 20px; padding: 32px; text-align: center; font-size: 42px; font-weight: 900; letter-spacing: 12px; color: #0f172a; margin: 32px 0; font-family: 'Courier New', Courier, monospace; }
+        .footer { max-width: 600px; margin: 0 auto; padding: 32px 20px; text-align: center; }
+        .footer-text { color: #94a3b8; font-size: 13px; line-height: 1.6; }
+        .footer-links { margin-top: 16px; }
+        .footer-links a { color: #6366f1; text-decoration: none; font-weight: 600; margin: 0 12px; }
+        .badge { display: inline-block; padding: 6px 14px; background: #e0e7ff; color: #4338ca; border-radius: 9999px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px; }
       </style>
     </head>
-    <body style="background-color: #f8fafc; margin: 0; padding: 0;">
-      <div class="container">
-        <a href="https://nextflippers.com" class="logo">NextFlippers</a>
-        <div class="card">
-          <h1>${title}</h1>
-          ${content}
-          ${ctaText && ctaLink ? `
-            <div style="margin-top: 32px; text-align: center;">
-              <a href="${ctaLink}" class="button">${ctaText}</a>
+    <body>
+      <div class="wrapper">
+        <div class="main">
+          <div class="header">
+            <a href="https://nextflippers.com" class="logo-text">
+              NEXTFLIPPERS
+            </a>
+          </div>
+          <div class="content">
+            <div class="badge">Professional Marketplace</div>
+            <h1>${title}</h1>
+            ${content}
+            ${ctaText && ctaLink ? `
+              <div class="button-container">
+                <a href="${ctaLink}" class="button">${ctaText}</a>
+              </div>
+            ` : ''}
+            <div style="margin-top: 40px; padding-top: 32px; border-top: 1px solid #f1f5f9;">
+              <p style="font-size: 14px; color: #64748b; margin-bottom: 0;"> Best Regards,<br><strong>The NextFlippers Team</strong></p>
             </div>
-          ` : ''}
+          </div>
         </div>
         <div class="footer">
           <p class="footer-text">
             © ${new Date().getFullYear()} NextFlippers Marketplace. All rights reserved.<br>
-            If you have any questions, contact us at support@nextflippers.com
+            Empowering digital entrepreneurs worldwide.
           </p>
+          <div class="footer-links">
+            <a href="https://nextflippers.com/browse">Marketplace</a>
+            <a href="https://nextflippers.com/dashboard">Dashboard</a>
+            <a href="mailto:support@nextflippers.com">Support</a>
+          </div>
         </div>
       </div>
     </body>
@@ -206,65 +219,6 @@ app.post("/api/email/approval", async (req, res) => {
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ error: "Failed to send approval email" });
-  }
-});
-
-// 5. Stripe Checkout Session
-app.post("/api/stripe/create-checkout-session", async (req, res) => {
-  const { items, successUrl, cancelUrl, customerEmail } = req.body;
-  console.log(`[Stripe] Creating session for ${customerEmail}. Items:`, items?.length);
-  
-  const stripeInstance = getStripe();
-  if (!stripeInstance) {
-    console.error("[Stripe] Secret key not found.");
-    return res.status(500).json({ error: "Stripe configuration missing on server." });
-  }
-
-  try {
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      console.error("[Stripe] No items provided");
-      throw new Error("No items provided for checkout.");
-    }
-
-    console.log("[Stripe] Preparling line items...");
-    const lineItems = items.map((item: any, index: number) => {
-      const rawPrice = item.askingPrice || item.price || item.salePrice;
-      const priceVal = parseFloat(rawPrice);
-      
-      if (isNaN(priceVal) || priceVal <= 0) {
-        console.error(`[Stripe] Invalid price for item ${index}:`, item);
-        throw new Error(`Invalid price for item ${index + 1}: ${item.title || 'Unknown'}`);
-      }
-      
-      return {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: item.title || "Digital Asset",
-            images: item.image && typeof item.image === 'string' && item.image.startsWith('http') && item.image.length < 2000 ? [item.image] : [],
-          },
-          unit_amount: Math.round(priceVal * 1.07 * 100), 
-        },
-        quantity: 1,
-      };
-    });
-
-    console.log("[Stripe] Line items prepared:", lineItems.length);
-
-    const session = await stripeInstance.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: lineItems,
-      mode: "payment",
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      customer_email: customerEmail || undefined,
-    });
-
-    console.log(`[Stripe] Session created: ${session.id}`);
-    res.json({ url: session.url });
-  } catch (error: any) {
-    console.error("[Stripe] Error:", error.message);
-    res.status(500).json({ error: error.message || "Failed to create Stripe session" });
   }
 });
 

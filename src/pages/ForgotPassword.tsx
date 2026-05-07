@@ -20,7 +20,11 @@ export default function ForgotPassword() {
       await sendPasswordResetEmail(auth, email);
       setSent(true);
     } catch (err: any) {
-      setError(err.message || 'Failed to send reset email');
+      if (err.code === 'auth/network-request-failed') {
+        setError('Network error: Firebase could not be reached. Please check your internet connection.');
+      } else {
+        setError(err.message || 'Failed to send reset email');
+      }
     } finally {
       setLoading(false);
     }

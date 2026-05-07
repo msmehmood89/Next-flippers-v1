@@ -10,16 +10,30 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-// Initialize Resend
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// Initialize Resend with fallback for common user mistakes in naming secrets
+const resendApiKey = process.env.RESEND_API_KEY || process.env.STRIPE_SECRET_KEY || process.env.STRIPE;
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
+
+if (!resend) {
+  console.warn("WARNING: Resend API Key is missing. Email features will be disabled.");
+}
 
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    emailEnabled: !!resend,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Check if Resend is configured
 const checkResend = () => {
   if (!resend) {
-    throw new Error("RESEND_API_KEY is not configured in environment variables.");
+    throw new Error("RESEND_API_KEY is not configured. Please add it to your secrets (Gear Icon -> Secrets).");
   }
 };
 
@@ -202,9 +216,15 @@ app.post("/api/auth/send-otp", async (req, res) => {
     if (error) throw error;
     res.json({ success: true });
   } catch (error: any) {
-    console.error("Email Error:", error.message);
+    console.error("OTP Email Error:", error.message || error);
     res.status(500).json({ error: error.message || "Failed to send verification email" });
   }
+});
+
+// Global error handler to prevent HTML responses for API errors
+app.use("/api", (err: any, req: any, res: any, next: any) => {
+  console.error("API error:", err);
+  res.status(500).json({ error: "Server Internal Error", details: err.message });
 });
 
 // 4. Listing/Gig Approval Notification

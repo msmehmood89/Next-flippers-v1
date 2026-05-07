@@ -30,14 +30,23 @@ export const emailService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp, type }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        return { error: data.error || 'Failed to send OTP' };
+      
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        const data = await response.json();
+        if (!response.ok) {
+          return { error: data.error || 'Failed to send OTP' };
+        }
+        return data;
+      } else {
+        // Fallback for HTML error pages (e.g. 404/500 from server)
+        const text = await response.text();
+        console.error("Non-JSON response received:", text.substring(0, 500));
+        return { error: `Server error (${response.status}). Please try again later.` };
       }
-      return data;
     } catch (err: any) {
       console.error("OTP email service error:", err);
-      return { error: err.message || 'Network error' };
+      return { error: 'Network error: Please check your internet connection' };
     }
   },
 

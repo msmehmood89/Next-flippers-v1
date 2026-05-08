@@ -23,6 +23,7 @@ app.use(express.json());
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
+  console.log("Health check requested from:", req.headers.host);
   res.json({ 
     status: "ok", 
     emailEnabled: !!resend,
@@ -31,8 +32,16 @@ app.get("/api/health", (req, res) => {
       STRIPE_SECRET_KEY: !!process.env.STRIPE_SECRET_KEY,
       STRIPE: !!process.env.STRIPE
     },
+    hostname: req.hostname,
+    protocol: req.protocol,
     timestamp: new Date().toISOString()
   });
+});
+
+// Log all API requests for debugging
+app.use("/api", (req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - From: ${req.headers.host}`);
+  next();
 });
 
 // Check if Resend is configured

@@ -50,8 +50,8 @@ export const emailService = {
       const text = await response.text();
       console.error("API Response Error:", { status: response.status, contentType, body: text.substring(0, 200) });
 
-      if (response.status === 200 && !isJson) {
-        return { error: "Network redirection detected. Please refresh the page and try again." };
+      if (response.status === 200 && (contentType.includes("text/html") || text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html"))) {
+        return { error: "The server is returning an app page instead of an API response. This often happens if the domain is not correctly pointed to the backend service. Please use the default application URL or check your domain configuration." };
       }
 
       return { error: `Server communication failed (${response.status}). Please contact support.` };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, query, collection, where, getDocs, getDoc } from 'firebase/firestore';
@@ -28,6 +28,27 @@ export default function Register() {
   const [verificationCode, setVerificationCode] = useState('');
   const [generatedOTP, setGeneratedOTP] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if API is reachable and configured
+    const checkApi = async () => {
+      try {
+        const res = await fetch('/api/health');
+        const contentType = res.headers.get("content-type");
+        if (res.ok && contentType?.includes("application/json")) {
+          const data = await res.json();
+          if (!data.emailEnabled) {
+            console.warn("Emails are disabled because RESEND_API_KEY is missing in the backend secrets.");
+          }
+        } else {
+          console.warn("API Health Check Failed: Server is returning HTML instead of JSON. This often happens if the domain routing is misconfigured.");
+        }
+      } catch (err) {
+        console.error("API Health Check Error:", err);
+      }
+    };
+    checkApi();
+  }, []);
 
   if (loading) return <LoadingScreen />;
 

@@ -221,8 +221,9 @@ app.post("/api/auth/send-otp", async (req, res) => {
     if (error) throw error;
     res.json({ success: true });
   } catch (error: any) {
-    console.error("OTP Email Error:", error.message || error);
-    res.status(500).json({ error: error.message || "Failed to send verification email" });
+    let errorMessage = error.message || error;
+    console.error("OTP Email Error:", errorMessage);
+    res.status(500).json({ error: errorMessage });
   }
 });
 

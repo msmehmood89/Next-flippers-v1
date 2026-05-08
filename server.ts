@@ -23,7 +23,8 @@ app.use(express.json());
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
-  console.log("Health check requested from:", req.headers.host);
+  const forwardedHost = req.headers['x-forwarded-host'] || req.headers['host'];
+  console.log("Health check requested from:", forwardedHost);
   res.json({ 
     status: "ok", 
     emailEnabled: !!resend,
@@ -34,13 +35,15 @@ app.get("/api/health", (req, res) => {
     },
     hostname: req.hostname,
     protocol: req.protocol,
+    forwardedHost,
     timestamp: new Date().toISOString()
   });
 });
 
 // Log all API requests for debugging
 app.use("/api", (req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - From: ${req.headers.host}`);
+  const forwardedHost = req.headers['x-forwarded-host'] || req.headers['host'];
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - From: ${forwardedHost} - IP: ${req.ip}`);
   next();
 });
 

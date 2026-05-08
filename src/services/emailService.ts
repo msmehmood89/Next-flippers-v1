@@ -27,26 +27,37 @@ export const emailService = {
     try {
       const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ email, otp, type }),
       });
       
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        const data = await response.json();
-        if (!response.ok) {
-          return { error: data.error || 'Failed to send OTP' };
-        }
-        return data;
-      } else {
-        // Fallback for HTML error pages (e.g. 404/500 from server)
-        const text = await response.text();
-        console.error("Non-JSON response received:", text.substring(0, 500));
-        return { error: `Server error (${response.status}). Please try again later.` };
+      const contentType = response.headers.get("content-type") || "";
+      const isJson = contentType.includes("application/json");
+
+      if (response.ok && isJson) {
+        return await response.json();
       }
+
+      if (!response.ok && isJson) {
+        const data = await response.json();
+        return { error: data.error || `Server Error (${response.status})` };
+      }
+
+      // Handle non-JSON or unexpected responses
+      const text = await response.text();
+      console.error("API Response Error:", { status: response.status, contentType, body: text.substring(0, 200) });
+
+      if (response.status === 200 && !isJson) {
+        return { error: "Network redirection detected. Please refresh the page and try again." };
+      }
+
+      return { error: `Server communication failed (${response.status}). Please contact support.` };
     } catch (err: any) {
-      console.error("OTP email service error:", err);
-      return { error: 'Network error: Please check your internet connection' };
+      console.error("OTP email service fatal error:", err);
+      return { error: 'Network error: Connection to server was interrupted. Please check your connection.' };
     }
   },
 

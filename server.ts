@@ -26,6 +26,11 @@ app.get("/api/health", (req, res) => {
   res.json({ 
     status: "ok", 
     emailEnabled: !!resend,
+    detectedKeys: {
+      RESEND_API_KEY: !!process.env.RESEND_API_KEY,
+      STRIPE_SECRET_KEY: !!process.env.STRIPE_SECRET_KEY,
+      STRIPE: !!process.env.STRIPE
+    },
     timestamp: new Date().toISOString()
   });
 });

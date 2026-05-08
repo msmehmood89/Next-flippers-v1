@@ -57,7 +57,7 @@ export default function Login() {
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Login cancelled. Please finish the sign-in in the Google popup.');
       } else if (err.code === 'auth/network-request-failed') {
-        setError('Network error: Firebase could not be reached. Please check your internet connection or disable any VPN/Ad-blockers.');
+        setError('Network error: Firebase could not be reached. This is usually caused by an ad-blocker, VPN, or unstable internet. Please disable any blockers and try again.');
       } else {
         setError(err.message || 'Google login failed');
       }

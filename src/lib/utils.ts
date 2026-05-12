@@ -45,18 +45,18 @@ export function getOnlineStatus(lastActiveAt?: Timestamp) {
   const minutes = diffInMinutes % 60;
 
   if (years > 0) {
-    return `${years}y ${months}mo ${days}d ago`;
+    return `${years}y${months}mo${days}d`;
   }
   if (months > 0) {
-    return `${months}mo ${days}d ${hours}h ago`;
+    return `${months}mo${days}d${hours}h`;
   }
   if (days > 0) {
-    return `${days}d ${hours}h ${minutes}m ago`;
+    return `${days}d${hours}h${minutes}m`;
   }
   if (hours > 0) {
-    return `${hours}h ${minutes}m ago`;
+    return `${hours}h${minutes}m`;
   }
-  return `${minutes}m ago`;
+  return `${minutes}m`;
 }
 
 export enum OperationType {

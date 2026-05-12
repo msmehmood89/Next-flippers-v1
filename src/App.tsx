@@ -22,7 +22,6 @@ import PaymentInstructions from './pages/PaymentInstructions';
 import AdminDashboard from './pages/AdminDashboard';
 import FreelanceMarketplace from './pages/FreelanceMarketplace';
 import CreateGig from './pages/dashboard/CreateGig';
-import CommunityChat from './pages/CommunityChat';
 import GigDetails from './pages/GigDetails';
 import SetupUsername from './pages/SetupUsername';
 import Support from './pages/Support';
@@ -226,11 +225,7 @@ export default function App() {
                 <Route path="/browse" element={<Browse />} />
                 <Route path="/freelancers" element={<FreelanceMarketplace />} />
                 <Route path="/gig/:id" element={<GigDetails />} />
-                <Route path="/community" element={
-                  <UsernameGuard>
-                    <CommunityChat />
-                  </UsernameGuard>
-                } />
+                <Route path="/community" element={<Navigate to="/chat/community" replace />} />
                 <Route path="/listing/:id" element={<ListingDetails />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -266,6 +261,11 @@ export default function App() {
                 <Route path="/dashboard/gigs/edit/:id" element={
                   <UsernameGuard>
                     <CreateGig />
+                  </UsernameGuard>
+                } />
+                <Route path="/chat" element={
+                  <UsernameGuard>
+                    <ChatPage />
                   </UsernameGuard>
                 } />
                 <Route path="/chat/:id" element={

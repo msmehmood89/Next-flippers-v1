@@ -3,122 +3,288 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { 
   collection, query, where, orderBy, onSnapshot, 
-  addDoc, serverTimestamp, doc, getDoc, updateDoc, deleteDoc,
-  getDocs, limit
+  addDoc, serverTimestamp, doc, getDoc, updateDoc,
+  getDocs, limit, Timestamp
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
-import { Message, ChatThread, Listing, UserProfile, Gig } from '../types';
+import { Message, ChatThread, Listing, UserProfile, Gig, CommunityMessage } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Send, ChevronLeft, Info, DollarSign, Shield, 
-  CheckCircle2, AlertCircle, Phone, Globe, ExternalLink, Check, CheckCheck,
-  Briefcase, Edit2, Trash2, Reply, X, Image as ImageIcon, Video
+  Send, ChevronLeft, DollarSign, Shield, 
+  Globe, ExternalLink, Check, CheckCheck,
+  Edit2, Trash2, Reply, X, Image as ImageIcon,
+  Search, Users, MoreVertical, Paperclip, MessageSquare, Menu, Smile
 } from 'lucide-react';
-import { formatCurrency, cn, getOnlineStatus, resizeImage } from '../lib/utils';
+import { formatCurrency, cn, getOnlineStatus } from '../lib/utils';
 import ProfileAvatar from '../components/ProfileAvatar';
 import LoadingScreen from '../components/LoadingScreen';
+
+// Enhanced types for the UI
+interface EnhancedChatThread extends ChatThread {
+  otherUserName?: string;
+  otherUserUsername?: string;
+  otherUserPhoto?: string;
+  otherUserGender?: 'male' | 'female';
+  otherUserLastActiveAt?: Timestamp;
+  unreadCount?: number;
+  listingTitle?: string;
+  type?: 'private' | 'community';
+}
 
 export default function ChatPage() {
   const { id } = useParams();
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [chat, setChat] = useState<ChatThread | null>(null);
+
+  // Unified State
+  const [chats, setChats] = useState<EnhancedChatThread[]>([]);
+  const [messages, setMessages] = useState<any[]>([]); // Can be Message or CommunityMessage
+  const [activeChat, setActiveChat] = useState<EnhancedChatThread | null>(null);
   const [listing, setListing] = useState<Listing | null>(null);
   const [gig, setGig] = useState<Gig | null>(null);
-  const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
   const [transaction, setTransaction] = useState<any | null>(null);
+  
+  const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
-  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<any | null>(null);
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 1. Fetch Conversations List
   useEffect(() => {
-    if (!id || !user) return;
+    if (!user) return;
 
-    const fetchChatData = async () => {
-      try {
-        const chatSnap = await getDoc(doc(db, 'chats', id));
-        if (!chatSnap.exists()) {
-          navigate('/dashboard/messages');
-          return;
-        }
-        const chatData = { id: chatSnap.id, ...chatSnap.data() } as ChatThread;
-        setChat(chatData);
+    const buyerQ = query(collection(db, 'chats'), where('buyerId', '==', user.uid));
+    const sellerQ = query(collection(db, 'chats'), where('sellerId', '==', user.uid));
 
-        // Fetch listing or gig
-        const listingSnap = await getDoc(doc(db, 'listings', chatData.listingId));
-        if (listingSnap.exists()) {
-          setListing({ id: listingSnap.id, ...listingSnap.data() } as Listing);
-        } else {
-          // Check if it's a gig
-          const gigSnap = await getDoc(doc(db, 'gigs', chatData.listingId));
-          if (gigSnap.exists()) {
-            setGig({ id: gigSnap.id, ...gigSnap.data() } as Gig);
-          }
-        }
-
-        // Fetch other user
-        const otherUserId = chatData.buyerId === user.uid ? chatData.sellerId : chatData.buyerId;
-        const otherUserSnap = await getDoc(doc(db, 'users', otherUserId));
-        if (otherUserSnap.exists()) setOtherUser({ uid: otherUserSnap.id, ...otherUserSnap.data() } as UserProfile);
-
-        // Fetch transaction if exists
-        const transQuery = query(
-          collection(db, 'transactions'),
-          where('buyerId', '==', chatData.buyerId),
-          where('sellerId', '==', chatData.sellerId),
-          where('listingId', '==', chatData.listingId),
-          orderBy('createdAt', 'desc'),
-          limit(1)
-        );
-        const transSnap = await getDocs(transQuery);
-        if (!transSnap.empty) {
-          setTransaction({ id: transSnap.docs[0].id, ...transSnap.docs[0].data() });
-        }
-
-        // Listen for messages only after we know the chat exists
-        const q = query(
-          collection(db, 'chats', id, 'messages'),
-          orderBy('createdAt', 'asc')
-        );
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-          setMessages(msgs);
-
-          // Mark unread messages as read
-          snapshot.docs.forEach(async (messageDoc) => {
-            const msgData = messageDoc.data();
-            if (msgData.senderId !== user.uid && !msgData.isRead) {
-              await updateDoc(doc(db, 'chats', id, 'messages', messageDoc.id), { isRead: true });
-            }
-          });
-        }, (error) => {
-          console.error("Messages snapshot error:", error);
-        });
-
-        return unsubscribe;
-      } catch (error) {
-        console.error('Error fetching chat data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    let unsubMessages: (() => void) | undefined;
-    fetchChatData().then(unsub => {
-      unsubMessages = unsub;
+    const unsubBuyer = onSnapshot(buyerQ, (snapshot) => {
+      handleChatUpdate(snapshot.docs, 'buyer');
     });
 
-    return () => {
-      if (unsubMessages) unsubMessages();
-    };
-  }, [id, user]);
+    const unsubSeller = onSnapshot(sellerQ, (snapshot) => {
+      handleChatUpdate(snapshot.docs, 'seller');
+    });
 
+    const handleChatUpdate = async (docs: any[], type: string) => {
+      const chatData = docs.map(doc => ({ id: doc.id, ...doc.data() } as EnhancedChatThread));
+      
+      setChats(prev => {
+        // Keep community chat
+        const community = prev.filter(c => c.type === 'community');
+        const others = prev.filter(c => c.type !== 'community' && (type === 'buyer' ? c.sellerId === user.uid : c.buyerId === user.uid));
+        
+        const combined = [...community, ...others, ...chatData];
+        // Remove duplicates & sort
+        const unique = combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+        
+        return unique.sort((a, b) => {
+          if (a.id === 'community') return -1;
+          if (b.id === 'community') return 1;
+          const timeA = a.lastMessageAt?.toMillis() || a.createdAt?.toMillis() || 0;
+          const timeB = b.lastMessageAt?.toMillis() || b.createdAt?.toMillis() || 0;
+          return timeB - timeA;
+        });
+      });
+
+      // Enrich chats (metadata like names, labels, unread counts)
+      const enriched = await Promise.all(chatData.map(async (chat) => {
+        const otherUserId = chat.buyerId === user.uid ? chat.sellerId : chat.buyerId;
+        const [listingSnap, gigSnap, otherUserSnap, messagesSnap] = await Promise.all([
+          getDoc(doc(db, 'listings', chat.listingId)),
+          getDoc(doc(db, 'gigs', chat.listingId)),
+          getDoc(doc(db, 'users', otherUserId)),
+          getDocs(query(
+            collection(db, 'chats', chat.id, 'messages'),
+            where('isRead', '==', false),
+            where('senderId', '!=', user.uid)
+          ))
+        ]);
+
+        let title = 'Unknown Item';
+        if (listingSnap.exists()) title = (listingSnap.data() as Listing).title;
+        else if (gigSnap.exists()) title = (gigSnap.data() as Gig).title;
+
+        return {
+          ...chat,
+          type: 'private' as const,
+          listingTitle: title,
+          otherUserName: otherUserSnap.exists() ? (otherUserSnap.data() as UserProfile).name : 'User',
+          otherUserUsername: otherUserSnap.exists() ? (otherUserSnap.data() as UserProfile).username : 'user',
+          otherUserGender: otherUserSnap.exists() ? (otherUserSnap.data() as UserProfile).gender : 'male',
+          otherUserPhoto: otherUserSnap.exists() ? (otherUserSnap.data() as UserProfile).photoURL : undefined,
+          otherUserLastActiveAt: otherUserSnap.exists() ? (otherUserSnap.data() as UserProfile).lastActiveAt : undefined,
+          unreadCount: messagesSnap.size
+        };
+      }));
+
+      setChats(prev => {
+        const updated = prev.map(c => {
+          const found = enriched.find(e => e.id === c.id);
+          return found ? found : c;
+        });
+
+        // Add community chat if not exists
+        if (!updated.find(c => c.id === 'community')) {
+          updated.push({
+            id: 'community',
+            type: 'community',
+            listingTitle: 'Community Discussion',
+            otherUserName: 'Global Community',
+            otherUserUsername: 'community',
+            buyerId: '',
+            sellerId: '',
+            listingId: '',
+            createdAt: Timestamp.now(),
+          });
+        }
+
+        return updated.sort((a, b) => {
+          if (a.id === 'community') return -1;
+          if (b.id === 'community') return 1;
+          const timeA = a.lastMessageAt?.toMillis() || a.createdAt?.toMillis() || 0;
+          const timeB = b.lastMessageAt?.toMillis() || b.createdAt?.toMillis() || 0;
+          return timeB - timeA;
+        });
+      });
+      setLoading(false);
+    };
+
+    return () => {
+      unsubBuyer();
+      unsubSeller();
+    };
+  }, [user]);
+
+  // 2. Handle Conversation Change
+  useEffect(() => {
+    if (!id || !user) {
+      setActiveChat(null);
+      setMessages([]);
+      return;
+    }
+
+    const currentChat = chats.find(c => c.id === id);
+    if (!currentChat && id !== 'community' && !loading) {
+      // If chat not found in list, might be a direct link, fetch it
+      const fetchDirectChat = async () => {
+        try {
+          const chatSnap = await getDoc(doc(db, 'chats', id));
+          if (chatSnap.exists()) {
+             const chatData = { id: chatSnap.id, ...chatSnap.data() } as EnhancedChatThread;
+             const otherUserId = chatData.buyerId === user.uid ? chatData.sellerId : chatData.buyerId;
+             const [otherUserSnap, listingSnap, gigSnap] = await Promise.all([
+               getDoc(doc(db, 'users', otherUserId)),
+               getDoc(doc(db, 'listings', chatData.listingId)),
+               getDoc(doc(db, 'gigs', chatData.listingId))
+             ]);
+
+             const enriched: EnhancedChatThread = {
+               ...chatData,
+               type: 'private',
+               otherUserName: otherUserSnap.exists() ? otherUserSnap.data()?.name : 'User',
+               otherUserUsername: otherUserSnap.exists() ? otherUserSnap.data()?.username : 'user',
+               otherUserGender: otherUserSnap.exists() ? otherUserSnap.data()?.gender : 'male',
+               otherUserPhoto: otherUserSnap.exists() ? otherUserSnap.data()?.photoURL : undefined,
+               otherUserLastActiveAt: otherUserSnap.exists() ? otherUserSnap.data()?.lastActiveAt : undefined,
+               listingTitle: listingSnap.exists() ? listingSnap.data()?.title : (gigSnap.exists() ? gigSnap.data()?.title : 'Item')
+             };
+             setActiveChat(enriched);
+          }
+        } catch (e) {
+          console.error("Direct chat fetch error:", e);
+        }
+      };
+      fetchDirectChat();
+    } else {
+      setActiveChat(currentChat || null);
+    }
+    
+    if (window.innerWidth < 1024) setShowSidebar(false);
+
+    let unsubscribe: () => void;
+
+    if (id === 'community') {
+      const q = query(
+        collection(db, 'community_messages'),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunityMessage)).reverse();
+        setMessages(msgs);
+        setMessagesLoading(false);
+      });
+    } else {
+      setMessagesLoading(true);
+      const q = query(
+        collection(db, 'chats', id, 'messages'),
+        orderBy('createdAt', 'asc')
+      );
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+        setMessages(msgs);
+        setMessagesLoading(false);
+
+        // Mark unread messages as read
+        snapshot.docs.forEach(async (messageDoc) => {
+          const msgData = messageDoc.data();
+          if (msgData.senderId !== user.uid && !msgData.isRead) {
+            await updateDoc(doc(db, 'chats', id, 'messages', messageDoc.id), { isRead: true });
+          }
+        });
+      });
+
+      // Load listing/gig details for the active chat context
+      const loadContext = async () => {
+         const chatSnap = await getDoc(doc(db, 'chats', id));
+         if (chatSnap.exists()) {
+           const c = chatSnap.data();
+           const lSnap = await getDoc(doc(db, 'listings', c.listingId));
+           if (lSnap.exists()) {
+             setListing({ id: lSnap.id, ...lSnap.data() } as Listing);
+           } else {
+             const gSnap = await getDoc(doc(db, 'gigs', c.listingId));
+             if (gSnap.exists()) setGig({ id: gSnap.id, ...gSnap.data() } as Gig);
+           }
+         }
+      };
+      loadContext();
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+      setListing(null);
+      setGig(null);
+      setTransaction(null);
+    };
+  }, [id, user, chats.length, loading]);
+
+  // 3. Listen to other user's real-time status
+  useEffect(() => {
+    if (!activeChat || activeChat.id === 'community' || !user) {
+      setOtherUser(null);
+      return;
+    }
+
+    const otherUserId = activeChat.buyerId === user.uid ? activeChat.sellerId : activeChat.buyerId;
+    const unsub = onSnapshot(doc(db, 'users', otherUserId), (docSnap) => {
+      if (docSnap.exists()) {
+        setOtherUser({ uid: docSnap.id, ...docSnap.data() } as UserProfile);
+      }
+    });
+
+    return () => unsub();
+  }, [activeChat?.id, user]);
+
+  // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -128,70 +294,83 @@ export default function ChatPage() {
     if ((!newMessage.trim() && !editingMessage) || !id || !user) return;
 
     try {
-      if (editingMessage) {
-        await updateDoc(doc(db, 'chats', id, 'messages', editingMessage.id), {
-          message: newMessage.trim(),
-          isEdited: true,
-          updatedAt: serverTimestamp(),
-        });
-        setEditingMessage(null);
-      } else {
-        const messageData: any = {
-          chatId: id,
-          senderId: user.uid,
-          senderUsername: profile?.username || 'user',
-          message: newMessage.trim(),
-          isRead: false,
-          createdAt: serverTimestamp(),
-        };
-
-        if (replyingTo) {
-          messageData.replyTo = {
-            messageId: replyingTo.id,
-            messageText: replyingTo.message,
-            senderUsername: replyingTo.senderUsername || 'user',
+      if (id === 'community') {
+        if (editingMessage) {
+          await updateDoc(doc(db, 'community_messages', editingMessage.id), {
+            message: newMessage.trim(),
+            isEdited: true,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          const messageData: any = {
+            senderId: user.uid,
+            senderName: profile?.name || 'Anonymous',
+            senderUsername: profile?.username || 'user',
+            senderGender: profile?.gender || 'male',
+            message: newMessage.trim(),
+            createdAt: serverTimestamp(),
           };
+          if (replyingTo) {
+            messageData.replyTo = {
+              messageId: replyingTo.id,
+              messageText: replyingTo.message,
+              senderUsername: replyingTo.senderUsername,
+            };
+          }
+          await addDoc(collection(db, 'community_messages'), messageData);
         }
-        
-        await addDoc(collection(db, 'chats', id, 'messages'), messageData);
-        
-        // Update chat thread
-        await updateDoc(doc(db, 'chats', id), {
-          lastMessage: newMessage.trim(),
-          lastMessageAt: serverTimestamp(),
-        });
-
-        // Send notification to other user
-        const recipientId = chat?.buyerId === user.uid ? chat?.sellerId : chat?.buyerId;
-        if (recipientId) {
-          await addDoc(collection(db, 'notifications'), {
-            userId: recipientId,
-            title: 'New Message',
-            message: `${profile?.username || 'Someone'} sent you a message`,
-            type: 'new_message',
-            link: `/chat/${id}`,
+      } else {
+        if (editingMessage) {
+          await updateDoc(doc(db, 'chats', id, 'messages', editingMessage.id), {
+            message: newMessage.trim(),
+            isEdited: true,
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          const messageData: any = {
+            chatId: id,
+            senderId: user.uid,
+            senderUsername: profile?.username || 'user',
+            message: newMessage.trim(),
             isRead: false,
             createdAt: serverTimestamp(),
+          };
+
+          if (replyingTo) {
+            messageData.replyTo = {
+              messageId: replyingTo.id,
+              messageText: replyingTo.message,
+              senderUsername: replyingTo.senderUsername || 'user',
+            };
+          }
+          
+          await addDoc(collection(db, 'chats', id, 'messages'), messageData);
+          
+          await updateDoc(doc(db, 'chats', id), {
+            lastMessage: newMessage.trim(),
+            lastMessageAt: serverTimestamp(),
           });
+
+          const recipientId = activeChat?.buyerId === user.uid ? activeChat?.sellerId : activeChat?.buyerId;
+          if (recipientId) {
+            await addDoc(collection(db, 'notifications'), {
+              userId: recipientId,
+              title: 'New Message',
+              message: `${profile?.username || 'Someone'} sent you a message`,
+              type: 'new_message',
+              link: `/chat/${id}`,
+              isRead: false,
+              createdAt: serverTimestamp(),
+            });
+          }
         }
-        setReplyingTo(null);
       }
 
       setNewMessage('');
+      setEditingMessage(null);
+      setReplyingTo(null);
     } catch (error) {
       console.error('Error sending message:', error);
-    }
-  };
-
-  const handleDeleteMessage = async (messageId: string) => {
-    if (!window.confirm('Delete this message?')) return;
-    try {
-      await updateDoc(doc(db, 'chats', id!, 'messages', messageId), {
-        isDeleted: true,
-        message: 'This message was deleted',
-      });
-    } catch (error) {
-      console.error('Error deleting message:', error);
     }
   };
 
@@ -199,307 +378,425 @@ export default function ChatPage() {
     const file = e.target.files?.[0];
     if (!file || !id || !user) return;
 
-    const isImage = file.type.startsWith('image/');
-
-    if (!isImage) {
-      alert('Please upload an image only.');
-      return;
-    }
-
-    // Size limits: 5MB for photos
-    const maxPhotoSize = 5 * 1024 * 1024;
-
-    if (file.size > maxPhotoSize) {
-      alert('Photo is too large. Max 5MB.');
+    if (!file.type.startsWith('image/')) {
+      alert('Images only for now.');
       return;
     }
 
     setUploading(true);
     try {
       const storageRef = ref(storage, `chats/${id}/${Date.now()}_${file.name}`);
-      
       const snapshot = await uploadBytes(storageRef, file);
       const mediaUrl = await getDownloadURL(snapshot.ref);
 
-      const messageData = {
-        chatId: id,
-        senderId: user.uid,
-        senderUsername: profile?.username || 'user',
-        message: '',
-        mediaUrl,
-        mediaType: 'image',
-        isRead: false,
-        createdAt: serverTimestamp(),
-      };
-
-      await addDoc(collection(db, 'chats', id, 'messages'), messageData);
-
-      await updateDoc(doc(db, 'chats', id), {
-        lastMessage: '📷 Photo',
-        lastMessageAt: serverTimestamp(),
-      });
-    } catch (error: any) {
-      console.error('Error uploading media:', error);
-      alert(`Upload failed: ${error.message || 'Unknown error'}`);
+      if (id === 'community') {
+        await addDoc(collection(db, 'community_messages'), {
+          senderId: user.uid,
+          senderName: profile?.name || 'Anonymous',
+          senderUsername: profile?.username || 'user',
+          senderGender: profile?.gender || 'male',
+          message: '',
+          mediaUrl,
+          mediaType: 'image',
+          createdAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(collection(db, 'chats', id, 'messages'), {
+          chatId: id,
+          senderId: user.uid,
+          senderUsername: profile?.username || 'user',
+          message: '',
+          mediaUrl,
+          mediaType: 'image',
+          isRead: false,
+          createdAt: serverTimestamp(),
+        });
+        await updateDoc(doc(db, 'chats', id), {
+          lastMessage: '📷 Photo',
+          lastMessageAt: serverTimestamp(),
+        });
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
+  const filteredChats = chats.filter(c => 
+    c.otherUserName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.otherUserUsername?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.listingTitle?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) return <LoadingScreen />;
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50">
-      {/* Chat Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-          <Link to="/dashboard/messages" className="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
-            <ChevronLeft className="w-6 h-6" />
-          </Link>
+    <div className="h-[calc(100vh-64px)] flex bg-[#f0f2f5] overflow-hidden">
+      {/* 1. Sidebar - Chat List */}
+      <aside className={cn(
+        "lg:w-96 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col transition-all duration-300",
+        !showSidebar ? "hidden lg:flex" : "w-full lg:w-96 flex"
+      )}>
+        {/* Sidebar Header */}
+        <header className="px-5 py-4 bg-gray-50 flex items-center justify-between border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <ProfileAvatar 
-              src={otherUser?.uid === user?.uid ? user?.photoURL || undefined : undefined} 
-              gender={otherUser?.gender} 
-              size="md" 
+             <Link to="/dashboard" className="p-2 -ml-2 text-gray-500 hover:text-indigo-600 transition-colors">
+              <ChevronLeft className="w-5 h-5" />
+            </Link>
+            <ProfileAvatar size="md" gender={profile?.gender} src={profile?.photoURL} />
+          </div>
+          <div className="flex items-center gap-4 text-gray-500">
+            <Link to="/community" title="Community"><Users className="w-5 h-5 hover:text-indigo-600 transition-all cursor-pointer" /></Link>
+          </div>
+        </header>
+
+        {/* Sidebar Search */}
+        <div className="px-4 py-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Search or start new chat" 
+              className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <div>
-              <div className="text-sm font-bold text-gray-900">@{otherUser?.username || otherUser?.name}</div>
-              <div className="flex items-center gap-1.5">
-                <div className={cn("w-1.5 h-1.5 rounded-full", otherUser?.lastActiveAt ? "bg-green-500" : "bg-gray-300")} />
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{getOnlineStatus(otherUser?.lastActiveAt)}</span>
-              </div>
-            </div>
           </div>
         </div>
 
-        {listing && (
-          <div className="hidden md:flex items-center gap-4 p-2 bg-gray-50 rounded-xl border border-gray-100">
-            <div className="w-10 h-10 bg-white rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
-              <img src={listing.images[0] || `https://picsum.photos/seed/${listing.id}/100/100`} alt="" className="w-full h-full object-cover" />
-            </div>
-            <div className="text-left">
-              <div className="text-xs font-bold text-gray-900 line-clamp-1">{listing.title}</div>
-              <div className="text-[10px] font-bold text-indigo-600">{formatCurrency(listing.askingPrice)}</div>
-            </div>
-            <Link 
-              to={transaction ? (transaction.buyerId === user?.uid ? '/dashboard/purchases' : '/dashboard/sales') : `/listing/${listing.id}`} 
-              className="p-2 text-gray-400 hover:text-indigo-600 flex flex-col items-center"
-            >
-              <ExternalLink className="w-4 h-4" />
-              {transaction && <span className="text-[8px] font-black uppercase mt-1">Order</span>}
-            </Link>
-          </div>
-        )}
-
-        {gig && (
-          <div className="hidden md:flex items-center gap-4 p-2 bg-gray-50 rounded-xl border border-gray-100">
-            <div className="w-10 h-10 bg-white rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
-              <img src={gig.images[0] || `https://picsum.photos/seed/${gig.id}/100/100`} alt="" className="w-full h-full object-cover" />
-            </div>
-            <div className="text-left">
-              <div className="text-xs font-bold text-gray-900 line-clamp-1">{gig.title}</div>
-              <div className="text-[10px] font-bold text-indigo-600">{formatCurrency(gig.price)}</div>
-            </div>
-            <Link 
-              to={transaction ? (transaction.buyerId === user?.uid ? '/dashboard/purchases' : '/dashboard/sales') : `/gig/${gig.id}`} 
-              className="p-2 text-gray-400 hover:text-indigo-600 flex flex-col items-center"
-            >
-              <ExternalLink className="w-4 h-4" />
-              {transaction && <span className="text-[8px] font-black uppercase mt-1">Order</span>}
-            </Link>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-          {listing && (
-            <Link
-              to={`/payment/${listing.id}`}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center gap-2"
-            >
-              <DollarSign className="w-3.5 h-3.5" />
-              Buy Now
-            </Link>
-          )}
-        </div>
-      </header>
-
-      {/* Messages Area */}
-      <div className="flex-grow overflow-y-auto p-6 space-y-6 bg-[#e5ddd5] relative">
-        {/* WhatsApp-like background pattern (simulated with CSS) */}
-        <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-        
-        <div className="max-w-3xl mx-auto space-y-6 relative z-10">
-          <div className="text-center py-10">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-full border border-indigo-100">
-              <Shield className="w-3.5 h-3.5" />
-              Escrow Protection Active
-            </div>
-            <p className="mt-4 text-xs text-gray-400 max-w-xs mx-auto leading-relaxed">
-              Always keep your conversations and payments within Next Flippers to stay protected by our manual escrow service.
-            </p>
-          </div>
-
-          {messages.map((msg, i) => {
-            const isMe = msg.senderId === user?.uid;
+        {/* Chat List */}
+        <div className="flex-grow overflow-y-auto">
+          {filteredChats.map((chat) => {
+            const isCommunity = chat.id === 'community';
+            const isActive = id === chat.id;
+            
             return (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn("flex", isMe ? "justify-end" : "justify-start")}
+              <Link 
+                key={chat.id}
+                to={`/chat/${chat.id}`}
+                className={cn(
+                  "flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-all cursor-pointer border-b border-gray-50 group",
+                  isActive ? "bg-gray-100" : "bg-white"
+                )}
               >
-                <div className={cn(
-                  "max-w-[80%] p-4 rounded-2xl shadow-sm relative group",
-                  isMe ? "bg-indigo-600 text-white rounded-tr-none" : "bg-white text-gray-900 rounded-tl-none border border-gray-100"
-                )}>
-                  {msg.replyTo && (
-                    <div className={cn(
-                      "mb-2 p-2 rounded-lg text-[10px] border-l-4",
-                      isMe ? "bg-white/10 border-white/40 text-white/80" : "bg-gray-50 border-indigo-200 text-gray-500"
-                    )}>
-                      <div className="font-black mb-1">@{msg.replyTo.senderUsername}</div>
-                      <div className="line-clamp-1 italic">"{msg.replyTo.messageText}"</div>
-                    </div>
-                  )}
-
-                  {msg.mediaUrl ? (
-                    <div className="mb-2 rounded-xl overflow-hidden">
-                      {msg.mediaType === 'video' ? (
-                        <video src={msg.mediaUrl} controls className="max-w-full rounded-xl" />
-                      ) : (
-                        <img src={msg.mediaUrl} alt="Media" className="max-w-full rounded-xl" />
-                      )}
+                <div className="relative">
+                  {isCommunity ? (
+                    <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                      <Users className="w-6 h-6" />
                     </div>
                   ) : (
-                    <p className={cn("text-sm leading-relaxed", msg.isDeleted && "italic opacity-60")}>
-                      {msg.message}
-                    </p>
+                    <ProfileAvatar 
+                      gender={chat.otherUserGender} 
+                      size="lg" 
+                      src={chat.otherUserPhoto} 
+                      className="rounded-full shadow-sm"
+                      isOnline={chat.otherUserLastActiveAt ? (Date.now() - chat.otherUserLastActiveAt.toMillis() < 300000) : false}
+                    />
                   )}
-
-                  <div className={cn("flex items-center justify-between gap-4 mt-2", isMe ? "text-indigo-100" : "text-gray-400")}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold opacity-50">
-                        {msg.createdAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        {msg.isEdited && !msg.isDeleted && " (edited)"}
-                      </span>
-                      {!msg.isDeleted && (
-                        <div className="flex items-center gap-3 ml-2">
-                          <button onClick={() => setReplyingTo(msg)} className="p-1 hover:bg-black/5 rounded-full transition-colors" title="Reply">
-                            <Reply className="w-3.5 h-3.5" />
-                          </button>
-                          {isMe && !msg.mediaUrl && (
-                            <button onClick={() => {
-                              setEditingMessage(msg);
-                              setNewMessage(msg.message);
-                            }} className="p-1 hover:bg-black/5 rounded-full transition-colors" title="Edit">
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {isMe && (
-                            <button onClick={() => handleDeleteMessage(msg.id)} className="p-1 hover:bg-black/5 rounded-full transition-colors text-red-400" title="Delete">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      )}
+                  {!isCommunity && chat.unreadCount && chat.unreadCount > 0 ? (
+                    <div className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md animate-pulse">
+                      {chat.unreadCount}
                     </div>
-                    {isMe && (
-                      <div className="flex items-center">
-                        {msg.isRead ? (
-                          <CheckCheck className="w-3.5 h-3.5 text-white" />
-                        ) : (
-                          <Check className="w-3.5 h-3.5 text-indigo-200" />
-                        )}
-                      </div>
-                    )}
+                  ) : null}
+                </div>
+
+                <div className="flex-grow min-w-0">
+                  <div className="flex justify-between items-start mb-0.5">
+                    <h3 className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors truncate">
+                      {isCommunity ? 'Community Chat' : chat.otherUserName}
+                    </h3>
+                    <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                      {chat.lastMessageAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || 
+                       chat.createdAt?.toDate().toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {chat.type === 'private' && chat.lastMessage && <CheckCheck className="w-3 h-3 text-gray-300" />}
+                    <p className="text-xs text-gray-500 truncate font-medium">
+                      {isCommunity ? 'Join the community discussion' : (chat.lastMessage || `Re: ${chat.listingTitle}`)}
+                    </p>
                   </div>
                 </div>
-              </motion.div>
+              </Link>
             );
           })}
-          <div ref={messagesEndRef} />
         </div>
-      </div>
+      </aside>
 
-      {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 p-4 shadow-lg">
-        <AnimatePresence>
-          {replyingTo && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="max-w-4xl mx-auto mb-4 p-3 bg-indigo-50 rounded-xl flex items-center justify-between border-l-4 border-indigo-600"
-            >
-              <div className="overflow-hidden">
-                <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Replying to @{replyingTo.senderUsername}</div>
-                <div className="text-xs text-gray-500 truncate">{replyingTo.message}</div>
+      {/* 2. Main Chat Area */}
+      <main className={cn(
+        "flex-grow flex flex-col bg-[#e5ddd5] relative transition-all duration-300",
+        showSidebar && "hidden lg:flex"
+      )}>
+        {/* WhatsApp Background Pattern */}
+        <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 1.5px, transparent 1px)', backgroundSize: '24px 24px' }} />
+
+        {activeChat ? (
+          <>
+            {/* Chat Header */}
+            <header className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setShowSidebar(true)} 
+                  className="lg:hidden p-2 -ml-2 text-gray-500"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <div 
+                  className="flex items-center gap-3 cursor-pointer"
+                  onClick={() => navigate(activeChat.id === 'community' ? '/community' : `/profile/${activeChat.otherUserUsername}`)}
+                >
+                  <div className="relative">
+                    {activeChat.id === 'community' ? (
+                      <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-sm">
+                        <Users className="w-5 h-5" />
+                      </div>
+                    ) : (
+                      <ProfileAvatar 
+                        size="md" 
+                        gender={activeChat.otherUserGender} 
+                        src={activeChat.otherUserPhoto} 
+                        isOnline={otherUser?.lastActiveAt ? (Date.now() - otherUser.lastActiveAt.toMillis() < 300000) : false}
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-gray-900 leading-tight">
+                      {activeChat.id === 'community' ? 'Community Chat' : activeChat.otherUserName}
+                    </h2>
+                    <p className={cn(
+                      "text-[10px] font-bold uppercase tracking-wider",
+                      otherUser?.lastActiveAt && (Date.now() - otherUser.lastActiveAt.toMillis() < 300000) 
+                        ? "text-green-600" 
+                        : "text-gray-400"
+                    )}>
+                      {activeChat.id === 'community' ? 'Online' : getOnlineStatus(otherUser?.lastActiveAt || activeChat.otherUserLastActiveAt)}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <button onClick={() => setReplyingTo(null)} className="p-1 text-gray-400 hover:text-red-500">
-                <X className="w-4 h-4" />
-              </button>
-            </motion.div>
-          )}
-          {editingMessage && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="max-w-4xl mx-auto mb-4 p-3 bg-amber-50 rounded-xl flex items-center justify-between border-l-4 border-amber-600"
-            >
-              <div className="overflow-hidden">
-                <div className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Editing Message</div>
-                <div className="text-xs text-gray-500 truncate">{editingMessage.message}</div>
+
+              <div className="flex items-center gap-4 text-gray-500">
+                <button 
+                  onClick={() => navigate(`/profile/${activeChat.otherUserUsername}`)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  title="View Profile"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                </button>
               </div>
-              <button onClick={() => {
-                setEditingMessage(null);
-                setNewMessage('');
-              }} className="p-1 text-gray-400 hover:text-red-500">
-                <X className="w-4 h-4" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </header>
 
-        <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex items-center gap-4">
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            accept="image/*"
-            onChange={handleFileUpload}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:text-indigo-600 transition-all"
-          >
-            {uploading ? <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /> : <ImageIcon className="w-5 h-5" />}
-          </button>
+            {/* Context Widget (Listing info) */}
+            {activeChat.type === 'private' && (listing || gig) && (
+              <div className="px-6 py-2 bg-indigo-50/80 backdrop-blur-sm border-b border-indigo-100 flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-lg overflow-hidden border border-indigo-100 p-0.5">
+                    <img src={listing?.images[0] || gig?.images[0]} alt="" className="w-full h-full object-cover rounded" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Inquiry Context</div>
+                    <div className="text-xs font-bold text-gray-900 line-clamp-1">{listing?.title || gig?.title}</div>
+                  </div>
+                </div>
+                <Link 
+                  to={`/payment/${listing?.id || gig?.id}`} 
+                  className="p-1 px-3 bg-indigo-600 text-white rounded-lg text-[10px] font-black hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 uppercase"
+                >
+                  Buy Now
+                </Link>
+              </div>
+            )}
 
-          <div className="flex-grow relative">
-            <input
-              type="text"
-              placeholder={editingMessage ? "Edit your message..." : "Type your message..."}
-              className="w-full pl-6 pr-12 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-            />
-            <button
-              type="submit"
-              disabled={!newMessage.trim() && !editingMessage}
-              className={cn(
-                "absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-all shadow-lg",
-                editingMessage ? "bg-amber-600 text-white shadow-amber-100" : "bg-indigo-600 text-white shadow-indigo-100"
-              )}
+            {/* Messages Scroll Area */}
+            <div className="flex-grow overflow-y-auto px-6 py-8 space-y-3 relative z-10 font-medium">
+              <div className="max-w-4xl mx-auto space-y-4">
+                {messagesLoading ? (
+                  <div className="flex justify-center py-20">
+                    <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : messages.map((msg, idx) => {
+                  const isMe = msg.senderId === user?.uid;
+                  const isCommunityChat = activeChat.id === 'community';
+                  const showSender = isCommunityChat && !isMe && (idx === 0 || messages[idx-1].senderId !== msg.senderId);
+                  
+                  return (
+                    <motion.div 
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      className={cn("flex w-full mb-1", isMe ? "justify-end" : "justify-start")}
+                    >
+                      <div className={cn(
+                        "relative max-w-[85%] sm:max-w-[70%] px-4 py-2 rounded-2xl shadow-sm text-sm group transition-all",
+                        isMe 
+                          ? "bg-indigo-600 text-white rounded-tr-none" 
+                          : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
+                      )}>
+                        {msg.replyTo && (
+                          <div className={cn(
+                            "mb-1.5 p-2 rounded-lg text-[10px] border-l-4 overflow-hidden",
+                            isMe ? "bg-black/10 border-white/50 text-white/80" : "bg-gray-50 border-indigo-400 text-gray-500"
+                          )}>
+                            <div className="font-black mb-0.5 truncate">@{msg.replyTo.senderUsername}</div>
+                            <div className="line-clamp-1 italic text-[9px]">"{msg.replyTo.messageText}"</div>
+                          </div>
+                        )}
+
+                        {showSender && (
+                          <div className="text-[10px] font-black text-indigo-500 mb-0.5 uppercase tracking-widest px-1">
+                            @{msg.senderUsername}
+                          </div>
+                        )}
+
+                        {msg.mediaUrl && (
+                          <div className="mb-2 rounded-xl overflow-hidden border border-black/5">
+                            <img src={msg.mediaUrl} alt="" className="max-w-full h-auto" />
+                          </div>
+                        )}
+
+                        <p className={cn("leading-relaxed break-words", msg.isDeleted && "italic opacity-60")}>
+                          {msg.message}
+                        </p>
+
+                        <div className="flex items-center justify-end gap-1.5 mt-1 opacity-70">
+                          <span className="text-[9px] font-medium origin-right scale-90">
+                             {msg.createdAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {isMe && (
+                             <div className="flex items-center">
+                               {msg.isRead ? (
+                                 <CheckCheck className="w-3 h-3 text-white" />
+                               ) : (
+                                 <Check className="w-3 h-3 text-white/60" />
+                               )}
+                             </div>
+                          )}
+                        </div>
+
+                        {!msg.isDeleted && (
+                          <div className={cn(
+                            "absolute top-0 opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 pt-1 px-2 pointer-events-none group-hover:pointer-events-auto",
+                            isMe ? "right-full mr-2" : "left-full ml-2"
+                          )}>
+                            <button onClick={() => setReplyingTo(msg)} className="p-1 px-2 bg-white rounded-lg shadow-sm border border-gray-100 hover:text-indigo-600 transition-colors">
+                              <Reply className="w-3.5 h-3.5" />
+                            </button>
+                            {isMe && !msg.mediaUrl && (
+                              <button onClick={() => { setEditingMessage(msg); setNewMessage(msg.message); }} className="p-1 px-2 bg-white rounded-lg shadow-sm border border-gray-100 hover:text-indigo-600 transition-colors">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {isMe && (
+                              <button onClick={async () => {
+                                if(window.confirm('Delete message?')) {
+                                  const path = activeChat.id === 'community' ? 'community_messages' : `chats/${activeChat.id}/messages`;
+                                  await updateDoc(doc(db, path, msg.id), { isDeleted: true, message: 'Message deleted' });
+                                }
+                              }} className="p-1 px-2 bg-white rounded-lg shadow-sm border border-gray-100 hover:text-red-500 transition-colors">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
+            {/* Input Area */}
+            <div className="bg-gray-50 border-t border-gray-200 p-4 px-6 relative z-10 shadow-lg">
+              <AnimatePresence>
+                {replyingTo && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="max-w-4xl mx-auto mb-3 p-3 px-5 bg-white rounded-2xl flex items-center justify-between border-l-4 border-indigo-600 shadow-sm"
+                  >
+                    <div className="overflow-hidden">
+                      <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Replying to @{replyingTo.senderUsername}</div>
+                      <div className="text-xs text-gray-500 truncate italic">"{replyingTo.message}"</div>
+                    </div>
+                    <button onClick={() => setReplyingTo(null)} className="p-1.5 text-gray-400 hover:text-red-500 bg-gray-50 rounded-full transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                )}
+                 {editingMessage && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="max-w-4xl mx-auto mb-3 p-3 px-5 bg-amber-50 rounded-2xl flex items-center justify-between border-l-4 border-amber-600 shadow-sm"
+                  >
+                    <div className="overflow-hidden">
+                      <div className="text-[10px] font-black text-amber-600 uppercase tracking-widest leading-none mb-1">Editing Message</div>
+                      <div className="text-xs text-gray-500 truncate italic">"{editingMessage.message}"</div>
+                    </div>
+                    <button onClick={() => { setEditingMessage(null); setNewMessage(''); }} className="p-1.5 text-gray-400 hover:text-red-500 bg-white rounded-full transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <label className="p-2.5 text-gray-400 hover:text-indigo-600 transition-colors cursor-pointer">
+                    <input type="file" className="hidden" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} disabled={uploading} />
+                    {uploading ? <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /> : <Paperclip className="w-6 h-6" />}
+                  </label>
+                </div>
+
+                <div className="flex-grow flex items-center bg-white rounded-2xl border border-gray-200 px-4 py-2 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
+                  <input 
+                    type="text" 
+                    placeholder="Type a message..."
+                    className="flex-grow bg-transparent border-none outline-none text-sm py-2"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                  />
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={!newMessage.trim() && !editingMessage}
+                  className={cn(
+                    "p-3.5 rounded-2xl text-white shadow-xl transition-all active:scale-95 disabled:grayscale disabled:opacity-50",
+                    editingMessage ? "bg-amber-600 shadow-amber-200" : "bg-indigo-600 shadow-indigo-200"
+                  )}
+                >
+                  {editingMessage ? <Check className="w-6 h-6" /> : <Send className="w-6 h-6" />}
+                </button>
+              </form>
+            </div>
+          </>
+        ) : (
+          /* Empty State */
+          <div className="flex-grow flex flex-col items-center justify-center p-12 text-center relative z-10">
+            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-indigo-600 shadow-xl mb-6">
+              <MessageSquare className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Your Messages</h2>
+            <p className="text-gray-500 max-w-sm mb-8 font-medium">
+              Select a conversation from the sidebar to start messaging. Your community and private chats are all in one place.
+            </p>
+            <button 
+              onClick={() => setShowSidebar(true)}
+              className="lg:hidden bg-indigo-600 text-white px-8 py-4 rounded-3xl font-black text-sm shadow-xl shadow-indigo-200 flex items-center gap-2"
             >
-              {editingMessage ? <Check className="w-5 h-5" /> : <Send className="w-5 h-5" />}
+              <Menu className="w-5 h-5" />
+              Show Conversations
             </button>
           </div>
-        </form>
-      </div>
+        )}
+      </main>
     </div>
   );
 }

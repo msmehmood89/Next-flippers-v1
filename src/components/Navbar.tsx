@@ -230,9 +230,9 @@ export default function Navbar() {
                           <LayoutDashboard className="w-4 h-4" />
                           Dashboard
                         </Link>
-                        <Link to="/dashboard/messages" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
+                        <Link to="/chat" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
                           <MessageSquare className="w-4 h-4" />
-                          Messages
+                          Chat & Community
                         </Link>
                         <Link to="/dashboard/sales" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
                           <PlusCircle className="w-4 h-4" />
@@ -309,7 +309,7 @@ export default function Navbar() {
                 <div className="space-y-4">
                   <Link to={profilePath} className="block text-lg font-bold text-indigo-600 hover:text-indigo-700 transition-colors">My Profile</Link>
                   <Link to="/dashboard" className="block text-lg font-bold text-gray-900 hover:text-indigo-600 transition-colors">Dashboard</Link>
-                  <Link to="/dashboard/messages" className="block text-lg font-bold text-gray-900 hover:text-indigo-600 transition-colors">Messages</Link>
+                  <Link to="/chat" className="block text-lg font-bold text-gray-900 hover:text-indigo-600 transition-colors">Chat & Community</Link>
                   <button onClick={handleLogout} className="block text-lg font-bold text-red-600">Logout</button>
                 </div>
               ) : (

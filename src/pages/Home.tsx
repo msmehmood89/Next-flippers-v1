@@ -1,112 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { collection, query, where, limit, getDocs, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Listing } from '../types';
+import heroBanner from '../assets/images/regenerated_image_1778586133552.png';
 import { 
-  Search, TrendingUp, Shield, Zap, 
-  ArrowRight, Globe, BarChart3, Users, 
+  Search, Shield, 
+  ArrowRight, Users, 
   CheckCircle2, DollarSign, Clock, MessageSquare,
-  ChevronRight, Star, Award, Sparkles, PlusCircle, Briefcase, FileText, Video, Gamepad2, Music2, SlidersHorizontal,
-  Instagram, Facebook, Twitter, AtSign, Package, Smartphone
+  Sparkles, Briefcase, FileText, Globe, Zap, Award, TrendingUp
 } from 'lucide-react';
-import { formatCurrency, cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
-import FavoriteButton from '../components/FavoriteButton';
+import { cn } from '../lib/utils';
+import { motion } from 'motion/react';
 
 export default function Home() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const [featuredListings, setFeaturedListings] = useState<Listing[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
-  const potentialSlides = [
-    {
-      title: 'Digital Businesses',
-      desc: 'Acquire high-authority websites and SaaS platforms. Verified profitable assets.',
-      icon: Globe,
-      stats: '$2.4M+ Volume',
-      color: 'bg-indigo-600',
-      iconColor: 'text-indigo-600',
-      bgColor: 'bg-indigo-50/50'
-    },
-    {
-      title: 'Safe Payouts',
-      desc: '100% Secure manual escrow. Admin handles funds until deal success.',
-      icon: Shield,
-      stats: '100% Protected',
-      color: 'bg-amber-500',
-      iconColor: 'text-amber-500',
-      bgColor: 'bg-amber-50/50'
-    },
-    {
-      title: 'Social Media',
-      desc: 'Premium Instagram, Facebook, and Twitter accounts with verified real growth.',
-      icon: Users,
-      stats: '100% Verified',
-      color: 'bg-pink-600',
-      iconColor: 'text-pink-600',
-      bgColor: 'bg-pink-50/50'
-    },
-    {
-      title: 'Gaming Assets',
-      desc: 'Elite gaming IDs, rare skins, and virtual items. Fast and secure trading.',
-      icon: Gamepad2,
-      stats: 'Instant Delivery',
-      color: 'bg-rose-600',
-      iconColor: 'text-rose-600',
-      bgColor: 'bg-rose-50/50'
-    },
-    {
-      title: 'Themes & Plugins',
-      desc: 'Acquire premium website themes, plugins, and mobile app source code.',
-      icon: Package,
-      stats: 'Instant Access',
-      color: 'bg-emerald-600',
-      iconColor: 'text-emerald-600',
-      bgColor: 'bg-emerald-50/50'
-    },
-    {
-      title: '24/7 Support',
-      desc: 'Real-time direct chat between buyers and sellers with expert moderation.',
-      icon: MessageSquare,
-      stats: 'Always Available',
-      color: 'bg-blue-600',
-      iconColor: 'text-blue-600',
-      bgColor: 'bg-blue-50/50'
-    }
-  ];
-
-  useEffect(() => {
-    if (!isAutoPlaying) return;
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % potentialSlides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [isAutoPlaying, potentialSlides.length]);
-
-  useEffect(() => {
-    const fetchFeatured = async () => {
-      try {
-        const q = query(
-          collection(db, 'listings'),
-          where('status', '==', 'approved'),
-          orderBy('createdAt', 'desc'),
-          limit(6)
-        );
-        const snapshot = await getDocs(q);
-        const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Listing));
-        setFeaturedListings(listings);
-      } catch (error) {
-        console.error('Error fetching featured listings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchFeatured();
-  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +32,7 @@ export default function Home() {
     {
       title: 'List Your Website',
       desc: 'Create a free listing in minutes. No upfront fees, no hidden costs.',
-      icon: PlusCircle,
+      icon: Briefcase,
       color: 'indigo'
     },
     {
@@ -151,6 +57,17 @@ export default function Home() {
 
   return (
     <div className="bg-white overflow-hidden">
+      {/* Featured Hero Banner - Directly below header */}
+      <section className="w-full bg-white border-b border-gray-100 overflow-hidden">
+        <div className="w-full max-w-[1920px] mx-auto bg-gray-50 flex items-center justify-center">
+          <img 
+            src={heroBanner} 
+            alt="Next Flippers - Payments Simplified! Deal Secured." 
+            className="w-full h-auto block min-h-[100px]"
+          />
+        </div>
+      </section>
+
       {/* Hero Section */}
       <section className="relative pt-20 pb-20 lg:pt-32 lg:pb-40">
         <div className="absolute inset-0 -z-10 overflow-hidden">
@@ -226,207 +143,6 @@ export default function Home() {
               <span key={tag} className="hover:text-indigo-600 transition-colors cursor-pointer">{tag}</span>
             ))}
           </motion.div>
-        </div>
-      </section>
-
-      {/* Platform Potential Showcase Slider - Integrated & Clean */}
-      <section className="py-12 bg-gray-50/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden relative min-h-[350px] md:min-h-[400px]">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentSlide}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="absolute inset-0 flex flex-col md:flex-row items-center"
-              >
-                {/* Content Side */}
-                <div className="flex-1 p-10 md:p-20">
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className={cn(
-                      "inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 text-white",
-                      potentialSlides[currentSlide].color
-                    )}
-                  >
-                    {React.createElement(potentialSlides[currentSlide].icon, { className: "w-4 h-4" })}
-                    {potentialSlides[currentSlide].stats}
-                  </motion.div>
-
-                  <h3 className="text-4xl md:text-6xl font-black text-gray-900 mb-6 tracking-tight leading-[1] uppercase">
-                    {potentialSlides[currentSlide].title}
-                  </h3>
-
-                  <p className="text-lg md:text-xl text-gray-500 leading-relaxed max-w-xl font-medium">
-                    {potentialSlides[currentSlide].desc}
-                  </p>
-                </div>
-
-                {/* Visual Side */}
-                <div className="flex-1 h-2/3 md:h-full w-full flex items-center justify-center p-10 relative overflow-hidden">
-                  <div className={cn(
-                    "absolute inset-0 m-12 rounded-full blur-3xl opacity-20",
-                    potentialSlides[currentSlide].iconColor.replace('text-', 'bg-')
-                  )} />
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0, rotate: -5 }}
-                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                    transition={{ duration: 0.8, delay: 0.1 }}
-                    className={cn(
-                      "w-48 h-48 md:w-72 md:h-72 rounded-[4rem] flex items-center justify-center relative z-10 shadow-2xl",
-                      potentialSlides[currentSlide].bgColor
-                    )}
-                  >
-                    {React.createElement(potentialSlides[currentSlide].icon, { 
-                      className: cn("w-24 h-24 md:w-36 md:h-36", potentialSlides[currentSlide].iconColor) 
-                    })}
-                  </motion.div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Slider Navigation Dots */}
-            <div className="absolute bottom-10 left-10 md:left-20 flex gap-3 z-20">
-              {potentialSlides.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => {
-                    setCurrentSlide(i);
-                    setIsAutoPlaying(false);
-                  }}
-                  className={cn(
-                    "transition-all duration-300 rounded-full",
-                    currentSlide === i ? "w-12 h-2.5 bg-indigo-600" : "w-2.5 h-2.5 bg-gray-200 hover:bg-gray-300"
-                  )}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Listings */}
-      <section className="py-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
-            <div>
-              <h2 className="text-4xl font-black text-gray-900 mb-4 tracking-tight leading-none">Featured Opportunities</h2>
-              <p className="text-gray-500 max-w-xl">Hand-picked profitable websites with verified traffic and revenue data.</p>
-            </div>
-            <Link to="/browse" className="group flex items-center gap-2 text-indigo-600 font-black uppercase tracking-widest text-xs hover:gap-4 transition-all">
-              View All Listings
-              <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {loading ? (
-              [...Array(6)].map((_, i) => (
-                <div key={i} className="bg-gray-100 rounded-3xl h-[450px] animate-pulse" />
-              ))
-            ) : (
-              featuredListings.map(listing => (
-                <Link
-                  key={listing.id}
-                  to={`/listing/${listing.id}`}
-                  className="group bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all hover:-translate-y-2"
-                >
-                  <div className="aspect-video relative overflow-hidden bg-gray-100">
-                    <img
-                      src={listing.images[0] || `https://picsum.photos/seed/${listing.id}/600/400`}
-                      alt={listing.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    <div className="absolute top-4 left-4 flex flex-col gap-2">
-                        <span className={cn(
-                          "px-4 py-1.5 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2",
-                          listing.type === 'website' ? "bg-indigo-600 text-white" :
-                          listing.type === 'youtube' ? "bg-red-600 text-white" :
-                          listing.type === 'tiktok' ? "bg-pink-600 text-white" :
-                          listing.type === 'instagram' ? "bg-purple-600 text-white" :
-                          listing.type === 'facebook' ? "bg-blue-600 text-white" :
-                          listing.type === 'twitter' ? "bg-sky-600 text-white" :
-                          listing.type === 'theme_plugin' ? "bg-emerald-600 text-white" :
-                          listing.type === 'mobile_app' ? "bg-violet-600 text-white" :
-                          listing.type === 'games' ? "bg-rose-600 text-white" :
-                          listing.type === 'group_buy' ? "bg-amber-600 text-white" :
-                          listing.type === 'premium_tool' ? "bg-purple-600 text-white" : "bg-teal-600 text-white"
-                        )}>
-                          {listing.type === 'website' ? <Globe className="w-3 h-3" /> :
-                           listing.type === 'youtube' ? <Video className="w-3 h-3" /> :
-                           listing.type === 'tiktok' ? <Music2 className="w-3 h-3" /> :
-                           listing.type === 'instagram' ? <Instagram className="w-3 h-3" /> :
-                           listing.type === 'facebook' ? <Facebook className="w-3 h-3" /> :
-                           listing.type === 'twitter' ? <Twitter className="w-3 h-3" /> :
-                           listing.type === 'theme_plugin' ? <Package className="w-3 h-3" /> :
-                           listing.type === 'mobile_app' ? <Smartphone className="w-3 h-3" /> :
-                           listing.type === 'games' ? <Gamepad2 className="w-3 h-3" /> :
-                           listing.type === 'group_buy' ? <Search className="w-3 h-3" /> :
-                           listing.type === 'premium_tool' ? <Star className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
-                          {listing.type?.replace('_', ' ').toUpperCase() || 'WEBSITE'}
-                        </span>
-                    </div>
-                    <div className="absolute top-4 right-4">
-                      <FavoriteButton itemId={listing.id} />
-                    </div>
-                  </div>
-                  <div className="p-8">
-                    <h3 className="text-xl font-black text-gray-900 mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">{listing.title}</h3>
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-6">{listing.url}</p>
-                    
-                    <div className="grid grid-cols-2 gap-4 mb-8">
-                      <div className="p-4 bg-gray-50 rounded-2xl">
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                          {listing.type === 'youtube' ? 'Subscribers' : 
-                           (listing.type === 'tiktok' || listing.type === 'instagram' || listing.type === 'facebook' || listing.type === 'twitter' || listing.type === 'threads') ? 'Followers' :
-                           listing.type === 'games' ? 'Account Level' : 'Monthly Profit'}
-                        </div>
-                        <div className="text-lg font-black text-gray-900">
-                          {listing.type === 'youtube' ? (listing.subscribers?.toLocaleString() || '0') : 
-                           (listing.type === 'tiktok' || listing.type === 'instagram' || listing.type === 'facebook' || listing.type === 'twitter' || listing.type === 'threads') ? (listing.followers?.toLocaleString() || '0') :
-                           listing.type === 'games' ? (listing.gameLevel || 'N/A') : formatCurrency(listing.monthlyProfit)}
-                        </div>
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-2xl">
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Asking Price</div>
-                        <div className="text-lg font-black text-indigo-600">{formatCurrency(listing.askingPrice)}</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-6 border-t border-gray-50">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
-                          {listing.type === 'youtube' ? <ArrowRight className="w-4 h-4" /> : 
-                           listing.type === 'tiktok' ? <Video className="w-4 h-4" /> :
-                           listing.type === 'instagram' ? <Instagram className="w-4 h-4" /> :
-                           listing.type === 'facebook' ? <Facebook className="w-4 h-4" /> :
-                           listing.type === 'twitter' ? <Twitter className="w-4 h-4" /> :
-                           listing.type === 'theme_plugin' ? <Package className="w-4 h-4" /> :
-                           listing.type === 'mobile_app' ? <Smartphone className="w-4 h-4" /> :
-                           listing.type === 'games' ? <Gamepad2 className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
-                        </div>
-                        <span className="text-xs font-bold text-gray-500">
-                          {listing.type === 'youtube' ? `Subscribers` : 
-                           (listing.type === 'tiktok' || listing.type === 'instagram' || listing.type === 'facebook' || listing.type === 'twitter' || listing.type === 'threads') ? `Followers` :
-                           listing.type === 'theme_plugin' ? 'Source Code' :
-                           listing.type === 'mobile_app' ? 'App Store' :
-                           listing.type === 'games' ? `Platform` : `${listing.monthlyTraffic.toLocaleString()} Visitors`}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs font-bold text-indigo-600">
-                        Details
-                        <ArrowRight className="w-3 h-3" />
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))
-            )}
-          </div>
         </div>
       </section>
 

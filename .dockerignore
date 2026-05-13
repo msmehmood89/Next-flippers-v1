@@ -5,8 +5,6 @@ dist
 .gitignore
 Dockerfile
 .dockerignore
-package-lock.json
-README.md
 metadata.json
 firestore.rules
 firebase-blueprint.json

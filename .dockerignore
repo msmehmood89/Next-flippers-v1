@@ -8,6 +8,5 @@ Dockerfile
 package-lock.json
 README.md
 metadata.json
-firebase-applet-config.json
 firestore.rules
 firebase-blueprint.json

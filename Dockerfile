@@ -36,7 +36,7 @@ RUN npm install --production
 COPY --from=builder /app/dist ./dist
 
 # Expose the internal port (Cloud Run will route traffic here)
-EXPOSE 3000
+EXPOSE 8080
 
 # Start the application using the production command defined in package.json
 CMD ["npm", "start"]

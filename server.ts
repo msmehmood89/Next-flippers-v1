@@ -8,7 +8,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.PORT) || 8080;
+const PORT = 3000;
 
 // Initialize Resend with fallback for common user mistakes in naming secrets
 const resendApiKey = process.env.RESEND_API_KEY || process.env.STRIPE_SECRET_KEY || process.env.STRIPE;

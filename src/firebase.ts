@@ -11,6 +11,9 @@ const app = initializeApp(firebaseConfig);
 // We use force long polling to avoid WebSocket/gRPC-web connection issues.
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
+  // Using explicit host and SSL can sometimes bypass proxy sniffing issues
+  host: 'firestore.googleapis.com',
+  ssl: true,
 }, firebaseConfig.firestoreDatabaseId || '(default)');
 
 export const auth = getAuth(app);

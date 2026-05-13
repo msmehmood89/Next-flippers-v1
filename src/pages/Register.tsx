@@ -24,9 +24,6 @@ export default function Register() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showVerification, setShowVerification] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
-  const [generatedOTP, setGeneratedOTP] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -51,62 +48,6 @@ export default function Register() {
   }, []);
 
   if (loading) return <LoadingScreen />;
-
-  const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  };
-
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (verificationCode === generatedOTP) {
-      setError('');
-      setLoading(true);
-      try {
-        const cleanUsername = formData.username.trim().toLowerCase();
-        
-        console.log('OTP Verified. Creating user auth...');
-        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-        const user = userCredential.user;
-        console.log('User auth created:', user.uid);
-
-        // Create profile
-        console.log('Attempting to create user profile in Firestore...');
-        await setDoc(doc(db, 'users', user.uid), {
-          name: formData.name,
-          username: cleanUsername,
-          email: formData.email,
-          whatsappNumber: formData.whatsappNumber,
-          country: formData.country || 'Unknown',
-          gender: formData.gender,
-          role: formData.role,
-          status: 'active',
-          createdAt: serverTimestamp(),
-          lastActiveAt: serverTimestamp(),
-          rating: 0,
-          totalReviews: 0,
-          ordersCompleted: 0,
-          websitesBought: 0,
-          websitesSold: 0,
-          totalSales: 0,
-          totalPurchases: 0,
-          responseTime: 'N/A',
-          needsProfileSetup: false
-        });
-        
-        await emailService.sendWelcome(formData.email, formData.name);
-        navigate('/dashboard');
-      } catch (err: any) {
-        console.error('Final registration error:', err);
-        let msg = err.message || 'Registration failed';
-        if (err.code === 'auth/email-already-in-use') msg = 'This email is already registered.';
-        setError(msg);
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      setError('Invalid verification code. Please try again.');
-    }
-  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,28 +91,47 @@ export default function Register() {
         return;
       }
 
-      // Send OTP for verification
-      const otp = generateOTP();
-      setGeneratedOTP(otp);
-      
-      console.log('Sending OTP to:', formData.email);
-      const emailResult = await emailService.sendOTP(formData.email, otp, 'verification');
-      
-      if (emailResult.error) {
-        if (emailResult.error.includes('RESEND_API_KEY')) {
-          throw new Error('System Error: Email API Key is missing. Please set RESEND_API_KEY in the Secrets menu (Gear Icon -> Secrets).');
-        }
-        throw new Error(emailResult.error);
-      }
+      console.log('Creating user auth...');
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
+      console.log('User auth created:', user.uid);
 
-      setShowVerification(true);
+      // Create profile
+      console.log('Attempting to create user profile in Firestore...');
+      await setDoc(doc(db, 'users', user.uid), {
+        name: formData.name,
+        username: cleanUsername,
+        email: formData.email,
+        whatsappNumber: formData.whatsappNumber,
+        country: formData.country || 'Unknown',
+        gender: formData.gender,
+        role: formData.role,
+        status: 'active',
+        createdAt: serverTimestamp(),
+        lastActiveAt: serverTimestamp(),
+        rating: 0,
+        totalReviews: 0,
+        ordersCompleted: 0,
+        websitesBought: 0,
+        websitesSold: 0,
+        totalSales: 0,
+        totalPurchases: 0,
+        responseTime: 'N/A',
+        needsProfileSetup: false
+      });
+      
+      // Send welcome email
+      await emailService.sendWelcome(formData.email, formData.name).catch(err => {
+        console.warn('Welcome email failed, but registration succeeded:', err);
+      });
+
+      // Redirect with "welcome" flag
+      navigate('/dashboard?welcome=true');
     } catch (err: any) {
-      console.error('Verification initiation error:', err);
-      let errorMsg = err.message || 'Failed to send verification code.';
-      if (errorMsg.includes('Unexpected token')) {
-        errorMsg = 'Server response was invalid. Please wait a moment and try again.';
-      }
-      setError(errorMsg);
+      console.error('Registration error:', err);
+      let msg = err.message || 'Registration failed';
+      if (err.code === 'auth/email-already-in-use') msg = 'This email is already registered.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -225,7 +185,6 @@ export default function Register() {
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 p-4 py-20">
       <AnimatePresence mode="wait">
-        {!showVerification ? (
           <motion.div
             key="register-form"
             initial={{ opacity: 0, x: -20 }}
@@ -446,65 +405,6 @@ export default function Register() {
           <Link to="/login" className="text-indigo-600 font-bold hover:underline">Sign in</Link>
         </p>
       </motion.div>
-    ) : (
-      <motion.div
-        key="otp-verification"
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12"
-      >
-        <div className="text-center mb-10">
-          <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <ShieldCheck className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
-          <p className="text-gray-500 text-sm">We've sent a 6-digit code to <span className="font-bold text-gray-700">{formData.email}</span></p>
-        </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleVerifyOTP} className="space-y-6">
-          <div>
-            <input
-              type="text"
-              maxLength={6}
-              required
-              autoFocus
-              className="w-full text-center text-3xl font-black tracking-[0.5em] py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
-              placeholder="000000"
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-          >
-            Verify & Create Account
-          </button>
-
-          <p className="text-center text-sm text-gray-400">
-            Didn't receive the code?{' '}
-            <button 
-              type="button"
-              onClick={() => {
-                const otp = generateOTP();
-                setGeneratedOTP(otp);
-                emailService.sendOTP(formData.email, otp, 'verification');
-              }}
-              className="text-indigo-600 font-bold hover:underline"
-            >
-              Resend
-            </button>
-          </p>
-        </form>
-      </motion.div>
-    )}
   </AnimatePresence>
 </div>
 );

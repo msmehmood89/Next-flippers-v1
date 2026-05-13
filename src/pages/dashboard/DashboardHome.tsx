@@ -3,13 +3,16 @@ import { useAuth } from '../../App';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Listing } from '../../types';
-import { motion } from 'motion/react';
-import { PlusCircle, TrendingUp, Users, Globe, ArrowRight, List, MessageSquare, ShoppingBag, Shield, ChevronRight, Heart, DollarSign } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
+import { PlusCircle, TrendingUp, Users, Globe, ArrowRight, List, MessageSquare, ShoppingBag, Shield, ChevronRight, Heart, DollarSign, X, CheckCircle2, PartyPopper } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { formatCurrency, cn } from '../../lib/utils';
+import confetti from 'canvas-confetti';
 
 export default function DashboardHome() {
   const { profile, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showWelcome, setShowWelcome] = useState(false);
   const [stats, setStats] = useState({
     listings: 0,
     messages: 0,
@@ -19,6 +22,22 @@ export default function DashboardHome() {
   });
   const [recentListings, setRecentListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (searchParams.get('welcome') === 'true') {
+      setShowWelcome(true);
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#10b981', '#3b82f6', '#4f46e5']
+      });
+      // Clear the param
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('welcome');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -61,10 +80,71 @@ export default function DashboardHome() {
     };
 
     fetchStats();
-  }, [user]);
+  }, [user, profile]);
 
   return (
     <div className="space-y-6">
+      {/* Welcome Modal */}
+      <AnimatePresence>
+        {showWelcome && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-[2.5rem] shadow-2xl max-w-lg w-full overflow-hidden relative"
+            >
+              <button 
+                onClick={() => setShowWelcome(false)}
+                className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-gray-900 transition-colors"
+                id="close-welcome-modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="p-8 md:p-12 text-center">
+                <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
+                  <PartyPopper className="w-10 h-10" />
+                </div>
+                
+                <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight leading-tight">
+                  Welcome to <br />
+                  <span className="text-emerald-500">Next Flippers!</span>
+                </h2>
+                
+                <p className="text-gray-500 font-medium mb-10 leading-relaxed">
+                  We're absolutely thrilled to have you here, {profile?.name}! Your account is now active and you're ready to start your journey in the world of premium digital assets.
+                </p>
+
+                <div className="grid grid-cols-1 gap-4 mb-10">
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100/50 text-left">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-emerald-500">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-black text-gray-900">Email Verified</div>
+                      <div className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Account Secure</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => setShowWelcome(false)}
+                    className="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-lg shadow-xl shadow-emerald-200 hover:bg-emerald-600 transition-all active:scale-[0.98]"
+                    id="welcome-get-started"
+                  >
+                    Get Started Now
+                  </button>
+                  <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">
+                    The premium destination for digital assets
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* Header with Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

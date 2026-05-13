@@ -13,6 +13,7 @@ export default function DashboardHome() {
   const { profile, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showWelcome, setShowWelcome] = useState(false);
+  const [regMethod, setRegMethod] = useState<string | null>(null);
   const [stats, setStats] = useState({
     listings: 0,
     messages: 0,
@@ -24,8 +25,11 @@ export default function DashboardHome() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (searchParams.get('welcome') === 'true') {
+    const welcome = searchParams.get('welcome');
+    const method = searchParams.get('method');
+    if (welcome === 'true') {
       setShowWelcome(true);
+      if (method) setRegMethod(method);
       confetti({
         particleCount: 150,
         spread: 70,
@@ -35,9 +39,10 @@ export default function DashboardHome() {
       // Clear the param
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('welcome');
+      newParams.delete('method');
       setSearchParams(newParams, { replace: true });
     }
-  }, [searchParams]);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -119,11 +124,17 @@ export default function DashboardHome() {
                 <div className="grid grid-cols-1 gap-4 mb-10">
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100/50 text-left">
                     <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-emerald-500">
-                      <CheckCircle2 className="w-5 h-5" />
+                      {regMethod === 'email' ? <Shield className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
                     </div>
                     <div>
-                      <div className="text-sm font-black text-gray-900">Email Verified</div>
-                      <div className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Account Secure</div>
+                      <div className="text-sm font-black text-gray-900">
+                        {regMethod === 'email' 
+                          ? 'Please make sure to safe your email and password' 
+                          : 'Email Verified'}
+                      </div>
+                      <div className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                        {regMethod === 'email' ? 'Security Notice' : 'Account Secure'}
+                      </div>
                     </div>
                   </div>
                 </div>

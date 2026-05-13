@@ -75,7 +75,7 @@ export default function UserSettings() {
   };
 
   const handleReauthenticate = async () => {
-    if (!user) return;
+    if (!user || isDeleting) return;
     setIsDeleting(true);
     setDeleteError('');
 

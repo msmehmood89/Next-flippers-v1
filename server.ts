@@ -64,34 +64,33 @@ const getEmailTemplate = (title: string, content: string, ctaText?: string, ctaL
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
-        body { background-color: #f8fafc; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
-        .wrapper { width: 100%; table-layout: fixed; background-color: #f8fafc; padding-bottom: 40px; }
-        .main { background-color: #ffffff; margin: 0 auto; width: 100%; max-width: 600px; border-radius: 20px; overflow: hidden; margin-top: 40px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .header { background: #0f172a; padding: 40px 20px; text-align: center; }
-        .logo-text { color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.04em; text-decoration: none; text-transform: uppercase; }
-        .content { padding: 48px 40px; }
-        .badge { display: inline-block; padding: 6px 12px; background: #f1f5f9; color: #475569; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 24px; }
-        h1 { color: #0f172a; font-size: 28px; font-weight: 800; margin-top: 0; margin-bottom: 20px; letter-spacing: -0.02em; line-height: 1.2; }
-        p { color: #475569; font-size: 16px; line-height: 1.6; margin-bottom: 24px; }
-        .button-container { padding: 8px 0 32px; }
-        .button { background-color: #4f46e5; color: #ffffff !important; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block; transition: background-color 0.2s; }
-        .highlight { color: #4f46e5; font-weight: 700; }
-        .otp-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; text-align: center; font-size: 36px; font-weight: 800; letter-spacing: 10px; color: #0f172a; margin: 32px 0; font-family: 'Courier New', Courier, monospace; }
-        .footer { max-width: 600px; margin: 0 auto; padding: 32px 20px; text-align: center; }
-        .footer-text { color: #94a3b8; font-size: 13px; line-height: 1.6; }
-        .footer-links { margin-top: 16px; }
-        .footer-links a { color: #64748b; text-decoration: none; font-weight: 500; margin: 0 10px; font-size: 13px; }
-        .divider { border-top: 1px solid #f1f5f9; margin-top: 40px; padding-top: 32px; }
+        body { background-color: #f4f7f6; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+        .wrapper { width: 100%; table-layout: fixed; background-color: #f4f7f6; padding-bottom: 60px; }
+        .main { background-color: #ffffff; margin: 0 auto; width: 100%; max-width: 600px; border-radius: 32px; overflow: hidden; margin-top: 60px; border: 1px solid #e2e8f0; box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05); }
+        .header { background: #0f172a; padding: 50px 20px; text-align: center; }
+        .logo-text { color: #ffffff; font-size: 26px; font-weight: 900; letter-spacing: -0.05em; text-decoration: none; text-transform: uppercase; }
+        .content { padding: 60px 50px; }
+        .badge { display: inline-block; padding: 8px 16px; background: #f0fdf4; color: #16a34a; border-radius: 9999px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 30px; border: 1px solid #dcfce7; }
+        h1 { color: #0f172a; font-size: 32px; font-weight: 900; margin-top: 0; margin-bottom: 24px; letter-spacing: -0.03em; line-height: 1.1; }
+        p { color: #4b5563; font-size: 17px; line-height: 1.7; margin-bottom: 28px; }
+        .button-container { padding: 10px 0 40px; }
+        .button { background-color: #4f46e5; color: #ffffff !important; padding: 20px 40px; border-radius: 16px; text-decoration: none; font-weight: 800; font-size: 17px; display: inline-block; box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.3); }
+        .highlight { color: #4f46e5; font-weight: 800; }
+        .divider { border-top: 2px solid #f8fafc; margin-top: 50px; padding-top: 40px; }
+        .footer { max-width: 600px; margin: 0 auto; padding: 40px 20px; text-align: center; }
+        .footer-text { color: #94a3b8; font-size: 13px; font-weight: 500; line-height: 1.6; }
+        .footer-links { margin-top: 24px; }
+        .footer-links a { color: #64748b; text-decoration: none; font-weight: 700; margin: 0 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
       </style>
     </head>
     <body>
       <div class="wrapper">
         <div class="main">
           <div class="header">
-            <a href="https://nextflippers.com" class="logo-text">NEXTFLIPPERS</a>
+            <a href="https://nextflippers.com" class="logo-text">NextFlippers</a>
           </div>
           <div class="content">
-            <div class="badge">Marketplace Update</div>
+            <div class="badge">Official Correspondence</div>
             <h1>${title}</h1>
             ${content}
             ${ctaText && ctaLink ? `
@@ -100,19 +99,19 @@ const getEmailTemplate = (title: string, content: string, ctaText?: string, ctaL
               </div>
             ` : ''}
             <div class="divider">
-              <p style="font-size: 14px; color: #94a3b8; margin-bottom: 0;">Kind Regards,<br><strong>Team NextFlippers</strong></p>
+              <p style="font-size: 15px; color: #475569; margin-bottom: 0;">Best Regards,<br><strong style="color: #0f172a; font-size: 17px;">NextFlippers Team</strong></p>
             </div>
           </div>
         </div>
         <div class="footer">
           <p class="footer-text">
-            &copy; ${new Date().getFullYear()} NextFlippers. All rights reserved.<br>
-            The premium destination for digital asset acquisitions.
+            &copy; ${new Date().getFullYear()} NextFlippers Global. All rights reserved.<br>
+            The premium destination for the world's finest digital assets.
           </p>
           <div class="footer-links">
-            <a href="https://nextflippers.com/privacy">Privacy Policy</a>
+            <a href="https://nextflippers.com/privacy">Privacy</a>
             <a href="https://nextflippers.com/terms">Terms</a>
-            <a href="https://nextflippers.com/contact">Contact Us</a>
+            <a href="https://nextflippers.com/contact">Support</a>
           </div>
         </div>
       </div>
@@ -147,6 +146,36 @@ app.post("/api/email/welcome", async (req, res) => {
   } catch (error: any) {
     console.error("Email Error:", error.message);
     res.status(500).json({ error: error.message || "Failed to send email" });
+  }
+});
+
+// 5. Password Reset Instructions
+app.post("/api/email/reset-password", async (req, res) => {
+  const { email, resetLink } = req.body;
+  
+  try {
+    checkResend();
+    const html = getEmailTemplate(
+      "Password Reset Instructions",
+      `<p>Hello,</p>
+       <p>We received a request to reset the password associated with your <span class="highlight">NextFlippers</span> account. Security is our top priority, and we're here to help you get back into your account safely.</p>
+       <p>Please click the secure link below to proceed with setting a new password. This link will expire in 60 minutes for your protection.</p>
+       <p>If you did not initiate this request, please disregard this message or contact our support team if you have concerns about your account security.</p>`,
+      "Reset My Password",
+      resetLink
+    );
+
+    const { data, error } = await resend!.emails.send({
+      from: "NextFlippers <support@nextflippers.com>",
+      to: [email],
+      subject: "Password Reset Instructions - NextFlippers",
+      html,
+    });
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (error: any) {
+    console.error("Email Error:", error.message);
+    res.status(500).json({ error: error.message || "Failed to send reset email" });
   }
 });
 

@@ -1,25 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, setDoc, query, collection, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { motion } from 'motion/react';
-import { User, CheckCircle2, AlertCircle, ArrowRight, Phone, Globe, Mail } from 'lucide-react';
+import { UserProfile } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { User, CheckCircle2, AlertCircle, ArrowRight, Phone, Globe, Mail, X, PartyPopper } from 'lucide-react';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
+import confetti from 'canvas-confetti';
 
 export default function SetupUsername() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [showWelcome, setShowWelcome] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     whatsappNumber: '',
     country: '',
     gender: 'male' as 'male' | 'female',
+    role: 'buyer' as UserProfile['role'],
     email: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('welcome') === 'true') {
+      setShowWelcome(true);
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#4f46e5', '#3b82f6', '#10b981']
+      });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (profile) {
@@ -29,6 +46,7 @@ export default function SetupUsername() {
         whatsappNumber: profile.whatsappNumber || '',
         country: profile.country || '',
         gender: profile.gender || 'male',
+        role: profile.role || 'buyer',
         email: profile.email || user?.email || ''
       }));
     } else if (user) {
@@ -92,9 +110,9 @@ export default function SetupUsername() {
         whatsappNumber: formData.whatsappNumber,
         country: formData.country,
         gender: formData.gender,
+        role: formData.role,
         email: formData.email,
         name: profile?.name || user.displayName || cleanUsername,
-        role: profile?.role || 'buyer',
         status: profile?.status || 'active',
         createdAt: profile?.createdAt || serverTimestamp(),
         lastActiveAt: serverTimestamp(),
@@ -120,6 +138,63 @@ export default function SetupUsername() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 py-20">
+      {/* Welcome Modal for Social Logins */}
+      <AnimatePresence>
+        {showWelcome && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-[2.5rem] shadow-2xl max-w-lg w-full overflow-hidden relative"
+            >
+              <button 
+                onClick={() => setShowWelcome(false)}
+                className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-gray-900 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="p-8 md:p-12 text-center">
+                <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
+                  <PartyPopper className="w-10 h-10" />
+                </div>
+                
+                <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight leading-tight">
+                  Welcome to <br />
+                  <span className="text-indigo-600">Next Flippers!</span>
+                </h2>
+                
+                <p className="text-gray-500 font-medium mb-10 leading-relaxed">
+                  We're absolutely thrilled to have you here! Your Google account is connected. Now, let's complete your professional profile so you can start trading.
+                </p>
+
+                <div className="grid grid-cols-1 gap-4 mb-10 text-left">
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-green-500">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-black text-gray-900">Google Verified</div>
+                      <div className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Secure Authentication</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => setShowWelcome(false)}
+                    className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-[0.98]"
+                  >
+                    Setup My Profile
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -130,8 +205,8 @@ export default function SetupUsername() {
         </div>
 
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-black text-gray-900 mb-2">Complete Your Profile</h1>
-          <p className="text-gray-500">Please provide a few more details to get started.</p>
+          <h1 className="text-3xl font-black text-gray-900 mb-2">Complete Your Account</h1>
+          <p className="text-gray-500 font-medium tracking-tight">We need a few professional details to provide you the best experience in our marketplace.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -199,6 +274,33 @@ export default function SetupUsername() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Account Role</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, role: 'buyer' })}
+                className={`py-4 rounded-2xl font-black border-2 transition-all flex flex-col items-center gap-2 ${formData.role === 'buyer' ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}
+              >
+                Buy Websites
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, role: 'seller' })}
+                className={`py-4 rounded-2xl font-black border-2 transition-all flex flex-col items-center gap-2 ${formData.role === 'seller' ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}
+              >
+                Sell Websites
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, role: 'freelancer' })}
+                className={`py-4 rounded-2xl font-black border-2 transition-all flex flex-col items-center gap-2 ${formData.role === 'freelancer' ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}
+              >
+                Freelancer
+              </button>
             </div>
           </div>
 

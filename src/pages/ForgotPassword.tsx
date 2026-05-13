@@ -13,6 +13,7 @@ export default function ForgotPassword() {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError('');
     

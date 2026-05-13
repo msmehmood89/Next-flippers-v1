@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { doc, getDoc, onSnapshot, updateDoc, serverTimestamp, collection, query, where, limit, orderBy } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { UserProfile, Notification } from './types';
@@ -74,13 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Fallback timeout to ensure the application doesn't stay stuck
-    // if the connection to Firebase is delayed.
+    // if the connection to Firebase is delayed or blocked (e.g., by ad-blockers).
     const loadingTimeout = setTimeout(() => {
       if (loading) {
-        console.warn("Auth loading timed out. Forcing ready state.");
+        console.warn("Auth loading timed out. This often indicates Firestore reachability issues.");
         setLoading(false);
       }
-    }, 5000);
+    }, 15000); // Increased to 15s to allow for slow connections before failing over
 
     return () => {
       unsubscribe();

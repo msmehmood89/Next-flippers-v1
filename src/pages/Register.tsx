@@ -4,6 +4,8 @@ import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } f
 import { doc, setDoc, serverTimestamp, query, collection, where, getDocs, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { emailService } from '../services/emailService';
+import { useCart } from '../contexts/CartContext';
+import { UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Lock, Phone, ArrowRight, ShieldCheck, Globe, Users, Briefcase, ShoppingBag, AlertCircle, Chrome } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
@@ -20,11 +22,12 @@ export default function Register() {
     whatsappNumber: '',
     country: '',
     gender: 'male' as 'male' | 'female',
-    role: 'buyer' as 'buyer' | 'seller' | 'freelancer',
+    role: 'buyer' as UserProfile['role'],
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { clearCart } = useCart();
 
   useEffect(() => {
     // Check if API is reachable and configured
@@ -47,10 +50,12 @@ export default function Register() {
     checkApi();
   }, []);
 
-  if (loading) return <LoadingScreen />;
+  // We no longer return early here to prevent unmounting during async auth flows
+  // if (loading) return <LoadingScreen />;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
@@ -125,8 +130,11 @@ export default function Register() {
         console.warn('Welcome email failed, but registration succeeded:', err);
       });
 
-      // Redirect with "welcome" flag
-      navigate('/dashboard?welcome=true');
+      // Clear any existing cart items to ensure a clean personal account
+      clearCart();
+
+      // Redirect with "welcome" flag and registration method
+      navigate('/dashboard?welcome=true&method=email');
     } catch (err: any) {
       console.error('Registration error:', err);
       let msg = err.message || 'Registration failed';
@@ -138,6 +146,8 @@ export default function Register() {
   };
 
   const handleGoogleLogin = async () => {
+    if (loading) return;
+    setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
@@ -170,7 +180,16 @@ export default function Register() {
           needsProfileSetup: true
         });
       }
-      navigate('/dashboard');
+      
+      // Clear cart on successful login/register
+      clearCart();
+      
+      // If it's a new profile or details are missing, show welcome modal and setup profile
+      if (!docSnap.exists() || (docSnap.data() as any).needsProfileSetup) {
+        navigate('/setup-username?welcome=true');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Login cancelled. Please finish the sign-in in the Google popup.');
@@ -183,7 +202,21 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 p-4 py-20">
+    <>
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[10000]"
+          >
+            <LoadingScreen />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 p-4 py-20">
       <AnimatePresence mode="wait">
           <motion.div
             key="register-form"
@@ -407,5 +440,6 @@ export default function Register() {
       </motion.div>
   </AnimatePresence>
 </div>
+</>
 );
 }

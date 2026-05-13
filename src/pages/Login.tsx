@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { motion } from 'motion/react';
+import { useCart } from '../contexts/CartContext';
+import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, ArrowRight, Chrome } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
 
@@ -13,13 +14,16 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { clearCart } = useCart();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      clearCart();
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Failed to login');
@@ -29,6 +33,8 @@ export default function Login() {
   };
 
   const handleGoogleLogin = async () => {
+    if (loading) return;
+    setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
@@ -46,13 +52,22 @@ export default function Login() {
           whatsappNumber: '',
           country: '',
           gender: 'male', // Default, user will change in setup
-          role: 'buyer',
+          role: 'buyer', // Default, user will change in setup
           status: 'active',
           createdAt: serverTimestamp(),
+          lastActiveAt: serverTimestamp(),
           needsProfileSetup: true
         });
       }
-      navigate('/dashboard');
+      
+      clearCart();
+      
+      // If it's a new profile or details are missing, show welcome modal and setup profile
+      if (!docSnap.exists() || (docSnap.data() as any).needsProfileSetup) {
+        navigate('/setup-username?welcome=true');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Login cancelled. Please finish the sign-in in the Google popup.');
@@ -64,10 +79,25 @@ export default function Login() {
     }
   };
 
-  if (loading) return <LoadingScreen />;
+  // We no longer return early here to prevent unmounting during async auth flows
+  // if (loading) return <LoadingScreen />;
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 p-4">
+    <>
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[10000]"
+          >
+            <LoadingScreen />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -148,5 +178,6 @@ export default function Login() {
         </p>
       </motion.div>
     </div>
+    </>
   );
 }

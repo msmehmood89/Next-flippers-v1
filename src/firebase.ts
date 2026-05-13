@@ -41,15 +41,15 @@ async function verifyConnection() {
        return;
     }
     
-    console.error("CRITICAL: Firestore unreachable.", {
+    console.error("CRITICAL: Firestore unreachable. Request timed out or was blocked.", {
       code: error?.code,
       message: error?.message,
       projectId: firebaseConfig.projectId,
       dbId: firebaseConfig.firestoreDatabaseId
     });
 
-    if (error?.message?.includes('the client is offline')) {
-      console.warn("Detected 'offline' status. This is often caused by ad-blockers, VPNs, or browser tracking protection blocking 'firestore.googleapis.com'.");
+    if (error?.message?.includes('the client is offline') || error?.code === 'unavailable') {
+      console.warn("Detected network-related failure. This usually happens if 'firestore.googleapis.com' is blocked by an ad-blocker, firewall, or if the environment's internet connection is unstable.");
     }
 
     console.group("Firestore Troubleshooting");

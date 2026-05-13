@@ -86,5 +86,12 @@ export const emailService = {
       method: 'POST',
       body: JSON.stringify({ email, title, type }),
     });
+  },
+  
+  sendResetPassword: async (email: string, resetLink: string) => {
+    return apiFetch('/api/email/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, resetLink }),
+    });
   }
 };

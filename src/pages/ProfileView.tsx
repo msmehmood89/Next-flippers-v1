@@ -8,7 +8,7 @@ import {
   MapPin, Calendar, Star, MessageSquare, 
   ArrowUpRight, ExternalLink, Award, Zap,
   Cpu, Terminal, Activity, Lock, Unlock,
-  BarChart3, FileText
+  BarChart3, FileText, User, Mail, CheckCircle2, ArrowRight
 } from 'lucide-react';
 import { formatCurrency, cn, getOnlineStatus } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -72,10 +72,10 @@ export default function ProfileView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-          <div className="font-mono text-indigo-500 text-sm animate-pulse">INITIALIZING SECURE CONNECTION...</div>
+          <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+          <div className="font-bold text-gray-400 text-sm animate-pulse">Loading Profile...</div>
         </div>
       </div>
     );
@@ -83,18 +83,18 @@ export default function ProfileView() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center p-4">
-        <div className="text-center space-y-6 max-w-md">
-          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto border border-red-500/20">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center space-y-6 max-w-md bg-white p-12 rounded-[3rem] shadow-xl border border-gray-100">
+          <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto">
             <Lock className="w-10 h-10 text-red-500" />
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Access Denied</h1>
-          <p className="text-gray-400 font-mono text-sm">Target user profile not found in the database. The user may have been deleted or the link is incorrect.</p>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Profile Not Found</h1>
+          <p className="text-gray-500 text-sm leading-relaxed">The user profile you are looking for does not exist or has been removed from our marketplace.</p>
           <button 
             onClick={() => navigate('/')}
-            className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"
+            className="w-full px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
           >
-            Return to Base
+            Go Back Home
           </button>
         </div>
       </div>
@@ -102,383 +102,311 @@ export default function ProfileView() {
   }
 
   const tabs = [
-    { id: 'profile', label: 'IDENTITY', icon: Cpu },
-    { id: 'buyer', label: 'BUYER INTEL', icon: ShoppingBag },
-    { id: 'seller', label: 'SELLER ASSETS', icon: Globe },
-    { id: 'freelancer', label: 'OPERATIVE GIGS', icon: Briefcase },
+    { id: 'profile', label: 'Profile Info', icon: User },
+    { id: 'buyer', label: 'Buyer Profile', icon: ShoppingBag },
+    { id: 'seller', label: 'Storefront', icon: Globe },
+    { id: 'freelancer', label: 'Services', icon: Briefcase },
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-white pt-24 pb-20 selection:bg-indigo-500/30">
-      {/* Background Effects */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 blur-[120px] rounded-full" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]" />
-      </div>
-
+    <div className="min-h-screen bg-[#f8fafc] text-gray-900 pt-24 pb-20">
       <div className="max-w-6xl mx-auto px-4 relative z-10">
-        {/* Cinematic Header Card */}
+        {/* Professional Header Section */}
         <motion.div 
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative bg-[#121216] border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/50 mb-12"
+          className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-gray-100 mb-8"
         >
-          {/* Top Bar */}
-          <div className="h-12 bg-white/5 border-b border-white/5 flex items-center justify-between px-8">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-500/50" />
-              <div className="w-2 h-2 rounded-full bg-amber-500/50" />
-              <div className="w-2 h-2 rounded-full bg-green-500/50" />
-              <span className="ml-4 font-mono text-[10px] text-white/30 tracking-widest uppercase">Secure Profile Access // UID: {profile.uid.slice(0, 8)}</span>
-            </div>
-            <div className="flex items-center gap-4 font-mono text-[10px] text-indigo-400">
-              <Activity className="w-3 h-3 animate-pulse" />
-              <span>STATUS: {profile.status.toUpperCase()}</span>
+          {/* Cover Background Area */}
+          <div className="h-48 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative">
+            <div className="absolute inset-0 bg-black/10" />
+            <div className="absolute top-6 right-8 flex gap-3">
+              <button className="p-3 bg-white/20 backdrop-blur-md rounded-2xl text-white hover:bg-white/30 transition-all">
+                <ExternalLink className="w-5 h-5" />
+              </button>
             </div>
           </div>
 
-          <div className="p-8 md:p-12">
-            <div className="flex flex-col md:flex-row gap-12 items-start">
+          <div className="px-8 md:px-12 pb-10 -mt-12 relative">
+            <div className="flex flex-col md:flex-row gap-8 items-end">
               {/* Profile Image Section */}
-              <div className="relative group">
-                <div className="absolute -inset-4 bg-indigo-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative w-48 h-48 rounded-[2rem] overflow-hidden border-2 border-white/10 p-2 bg-white/5">
-                  <div className="w-full h-full rounded-[1.5rem] overflow-hidden">
-                    <ProfileAvatar src={profile.photoURL} gender={profile.gender} size="full" />
-                  </div>
-                </div>
-                <div className="absolute -bottom-4 -right-4 w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center border-4 border-[#121216] shadow-xl">
-                  <Shield className="w-6 h-6 text-white" />
+              <div className="relative">
+                <div className="w-40 h-40 rounded-[2.5rem] overflow-hidden border-[6px] border-white shadow-xl bg-gray-50 bg-white">
+                  <ProfileAvatar src={profile.photoURL} gender={profile.gender} size="full" />
                 </div>
               </div>
 
-              {/* Identity Info */}
-              <div className="flex-grow space-y-6">
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">
-                      {profile.role}
-                    </span>
-                    <span className="font-mono text-[10px] text-white/20">ESTABLISHED: {profile.createdAt.toDate().toLocaleDateString()}</span>
-                  </div>
-                  <h1 className="text-5xl font-black tracking-tight mb-2 bg-gradient-to-r from-white to-white/50 bg-clip-text text-transparent">
+              {/* Basic Info */}
+              <div className="flex-grow pb-2">
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <h1 className="text-4xl font-black tracking-tight text-gray-900">
                     {profile.name}
                   </h1>
-                  <p className="text-indigo-400 font-mono text-lg">@{profile.username}</p>
+                  <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-wider">
+                    {profile.role}
+                  </span>
                 </div>
+                <p className="text-gray-500 font-bold flex items-center gap-2">
+                  <span className="text-indigo-600">@{profile.username}</span>
+                  <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {profile.country || 'International'}
+                  </span>
+                </p>
+              </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Location</span>
-                    <div className="flex items-center gap-2 text-sm font-bold">
-                      <MapPin className="w-4 h-4 text-indigo-500" />
-                      {profile.country || 'Unknown'}
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Rating</span>
-                    <div className="flex items-center gap-2 text-sm font-bold">
-                      <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                      {profile.rating || '5.0'} ({profile.totalReviews || 0})
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Activity</span>
-                    <div className="flex items-center gap-2 text-sm font-bold">
-                      <div className={cn("w-2 h-2 rounded-full", profile.lastActiveAt ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
-                      {getOnlineStatus(profile.lastActiveAt)}
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">Completed</span>
-                    <div className="flex items-center gap-2 text-sm font-bold">
-                      <Zap className="w-4 h-4 text-indigo-500" />
-                      {profile.ordersCompleted || 0} Orders
-                    </div>
-                  </div>
-                </div>
-
-                {/* Categorized Ratings */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-white/5">
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5 group/stat hover:bg-white/10 transition-all cursor-default">
-                    <div className="text-[8px] font-mono text-white/20 uppercase tracking-widest mb-1 group-hover/stat:text-white/40 font-black">Seller Rating</div>
-                    <div className="flex items-center gap-2">
-                       <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                       <span className="text-sm font-black">{profile.sellerRating ? profile.sellerRating.toFixed(1) : '—'}</span>
-                       <span className="text-[10px] text-white/30 truncate ml-auto">{profile.sellerReviews || 0} reviews</span>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5 group/stat hover:bg-white/10 transition-all cursor-default">
-                    <div className="text-[8px] font-mono text-white/20 uppercase tracking-widest mb-1 group-hover/stat:text-white/40 font-black">Buyer Rating</div>
-                    <div className="flex items-center gap-2">
-                       <Star className="w-3 h-3 text-blue-500 fill-blue-500" />
-                       <span className="text-sm font-black">{profile.buyerRating ? profile.buyerRating.toFixed(1) : '—'}</span>
-                       <span className="text-[10px] text-white/30 truncate ml-auto">{profile.buyerReviews || 0} reviews</span>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5 group/stat hover:bg-white/10 transition-all cursor-default">
-                    <div className="text-[8px] font-mono text-white/20 uppercase tracking-widest mb-1 group-hover/stat:text-white/40 font-black">Freelancer Rating</div>
-                    <div className="flex items-center gap-2">
-                       <Star className="w-3 h-3 text-indigo-500 fill-indigo-500" />
-                       <span className="text-sm font-black">{profile.freelancerRating ? profile.freelancerRating.toFixed(1) : '—'}</span>
-                       <span className="text-[10px] text-white/30 truncate ml-auto">{profile.freelancerReviews || 0} reviews</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-4 pt-4">
-                  <button 
-                    onClick={() => navigate(`/chat?userId=${profile.uid}`)}
-                    className="px-8 py-3 bg-white text-black rounded-xl font-black text-sm hover:bg-indigo-500 hover:text-white transition-all flex items-center gap-2"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    INITIATE CONTACT
-                  </button>
-                  <button 
-                    onClick={() => navigate(`/statistics/${profile.uid}`)}
-                    className="px-8 py-3 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl font-black text-sm hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-2"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    VIEW STATISTICS
-                  </button>
-                  <button className="px-8 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-sm hover:bg-white/10 transition-all flex items-center gap-2">
-                    <ArrowUpRight className="w-4 h-4" />
-                    SHARE
-                  </button>
+              {/* Action Buttons */}
+              <div className="flex gap-3 mb-2 w-full md:w-auto">
+                <button 
+                  onClick={() => navigate(`/chat?userId=${profile.uid}`)}
+                  className="flex-1 md:flex-none px-8 py-3.5 bg-black text-white rounded-2xl font-bold text-sm hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Message
+                </button>
+                <div className="flex gap-2">
+                   <button className="p-3 bg-gray-50 text-gray-600 rounded-2xl hover:bg-gray-100 transition-all border border-gray-100">
+                     <BarChart3 className="w-5 h-5" />
+                   </button>
+                   <button className="p-3 bg-gray-50 text-gray-600 rounded-2xl hover:bg-gray-100 transition-all border border-gray-100">
+                     <ExternalLink className="w-5 h-5" />
+                   </button>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Bottom Stats Bar */}
-          <div className="bg-white/[0.02] border-t border-white/5 px-12 py-6 grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div>
-              <div className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">Total Sales</div>
-              <div className="text-xl font-black text-white">{formatCurrency(profile.totalSales || 0)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">Purchases</div>
-              <div className="text-xl font-black text-white">{formatCurrency(profile.totalPurchases || 0)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">Response Time</div>
-              <div className="text-xl font-black text-indigo-400">{profile.responseTime || 'Under 1h'}</div>
-            </div>
-            <div>
-              <div className="text-[10px] font-mono text-white/20 uppercase tracking-widest mb-1">Member Level</div>
-              <div className="text-xl font-black text-white flex items-center gap-2">
-                <Award className="w-5 h-5 text-amber-500" />
-                Elite
+            {/* Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-10 pt-8 border-t border-gray-50">
+              <div className="space-y-1">
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Trust Rating</div>
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <span className="text-lg font-black">{profile.rating || '5.0'}</span>
+                  <span className="text-xs text-gray-400">({profile.totalReviews || 0})</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Completed Deals</div>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-indigo-500" />
+                  <span className="text-lg font-black">{profile.ordersCompleted || 0}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Member Since</div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <span className="text-lg font-black">{profile.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Online</div>
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-2.5 h-2.5 rounded-full shadow-sm", profile.lastActiveAt ? "bg-emerald-500" : "bg-gray-300")} />
+                  <span className="text-lg font-black">{getOnlineStatus(profile.lastActiveAt)}</span>
+                </div>
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 mb-8 bg-white/5 p-1.5 rounded-2xl border border-white/5 w-fit mx-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                activeTab === tab.id 
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
-                  : "text-white/40 hover:text-white hover:bg-white/5"
-              )}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Sidebar / Left Column */}
+          <div className="lg:col-span-4 space-y-8">
+            <section className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-indigo-600" />
+                Performance
+              </h3>
+              <div className="space-y-5">
+                {[
+                  { label: 'Response Rate', value: '100%', color: 'from-emerald-500 to-teal-500' },
+                  { label: 'Orders Completed', value: `${profile.ordersCompleted || 0}`, color: 'from-indigo-500 to-blue-500', isCount: true },
+                  { label: 'Satisfaction', value: `${profile.rating ? profile.rating.toFixed(1) : '5.0'}/5`, color: 'from-amber-500 to-orange-500' }
+                ].map((stat, i) => (
+                  <div key={i}>
+                    <div className="flex justify-between text-xs font-bold mb-2">
+                      <span className="text-gray-400 uppercase tracking-wide">{stat.label}</span>
+                      <span className="text-gray-900">{stat.value}</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden">
+                      <div className={cn("h-full rounded-full bg-gradient-to-r", stat.color)} style={{ width: (stat as any).isCount ? '100%' : stat.value.includes('%') ? stat.value : '90%' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-indigo-600" />
+                Expertise
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {profile.skills && profile.skills.length > 0 ? profile.skills.map((skill, i) => (
+                  <span key={i} className="px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold text-gray-600 hover:bg-white hover:shadow-sm transition-all">
+                    {skill}
+                  </span>
+                )) : (
+                  <p className="text-gray-400 text-xs italic">No skills listed yet.</p>
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="lg:col-span-8 space-y-8">
+            {/* Tabs Navigation */}
+            <div className="flex items-center gap-1 bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm w-full overflow-x-auto no-scrollbar">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={cn(
+                    "flex items-center gap-2 px-6 py-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap flex-1 justify-center",
+                    activeTab === tab.id 
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" 
+                      : "text-gray-400 hover:text-indigo-600 hover:bg-indigo-50/50"
+                  )}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-8"
+              >
+                {activeTab === 'profile' && (
+                  <div className="space-y-8">
+                    <section className="bg-white rounded-[2rem] p-10 border border-gray-100 shadow-sm relative overflow-hidden">
+                       <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
+                         <FileText className="w-32 h-32" />
+                       </div>
+                       <h3 className="text-xl font-black text-gray-900 mb-6 font-display">About Me</h3>
+                       <div className="prose prose-indigo max-w-none text-gray-500 leading-relaxed text-sm">
+                         {profile.bio || `Hi, I'm ${profile.name}! I'm active on Next Flippers as a ${profile.role}. Let's work together.`}
+                       </div>
+                       
+                       {profile.experience && (
+                         <>
+                           <div className="h-px bg-gray-50 my-8" />
+                           <h3 className="text-xl font-black text-gray-900 mb-6 font-display">Experience</h3>
+                           <p className="text-gray-500 leading-relaxed text-sm">
+                             {profile.experience}
+                           </p>
+                         </>
+                       )}
+                    </section>
+                  </div>
+                )}
+
+                {activeTab === 'buyer' && (
+                  <section className="bg-white rounded-[2rem] p-10 border border-gray-100 shadow-sm">
+                    <h3 className="text-xl font-black text-gray-900 mb-8 font-display">Buying Interests</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="p-8 bg-[#f8fafc] rounded-3xl border border-gray-100 group hover:border-indigo-200 transition-all">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3">Primary Interest</span>
+                        <div className="text-xl font-black text-gray-900">{profile.mainBusiness || 'Digital Assets'}</div>
+                      </div>
+                      <div className="p-8 bg-[#f8fafc] rounded-3xl border border-gray-100 group hover:border-indigo-200 transition-all">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-3">Looking to Acquire</span>
+                        <div className="text-xl font-black text-gray-900">{profile.lookingFor || 'Profitable Ventures'}</div>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {activeTab === 'seller' && (
+                  <section className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-black text-gray-900 font-display">Storefront Listings</h3>
+                      <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] font-black uppercase">{listings.length} Active</span>
+                    </div>
+                    {listings.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {listings.map(listing => (
+                          <Link 
+                            key={listing.id} 
+                            to={`/listing/${listing.id}`}
+                            className="group bg-white border border-gray-100 rounded-3xl overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all"
+                          >
+                            <div className="aspect-[16/10] relative overflow-hidden">
+                              <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                              <div className="absolute top-4 right-4 px-4 py-2 bg-indigo-600 text-white rounded-2xl text-sm font-black shadow-lg">
+                                {formatCurrency(listing.askingPrice)}
+                              </div>
+                            </div>
+                            <div className="p-6">
+                              <div className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2">{listing.category}</div>
+                              <h4 className="font-bold text-gray-900 line-clamp-1 mb-4 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{listing.title}</h4>
+                              <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                                <span className="text-[10px] font-black text-gray-400 uppercase">View asset</span>
+                                <ArrowRight className="w-4 h-4 text-indigo-600" />
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-20 bg-white border border-dashed border-gray-200 rounded-[2rem] p-12">
+                        <ShoppingBag className="w-16 h-16 text-gray-100 mx-auto mb-6" />
+                        <p className="text-gray-400 font-bold">No active listings from this seller.</p>
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {activeTab === 'freelancer' && (
+                  <section className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-black text-gray-900 font-display">Service Offerings</h3>
+                      <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] font-black uppercase">{gigs.length} Active</span>
+                    </div>
+                    {gigs.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {gigs.map(gig => (
+                          <Link 
+                            key={gig.id} 
+                            to={`/gig/${gig.id}`}
+                            className="group bg-white border border-gray-100 rounded-3xl overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all"
+                          >
+                            <div className="aspect-[16/10] relative overflow-hidden">
+                              <img src={gig.images[0]} alt={gig.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                              <div className="absolute bottom-4 right-4 px-4 py-2 bg-emerald-600 text-white rounded-2xl text-sm font-black shadow-lg">
+                                FROM {formatCurrency(gig.price)}
+                              </div>
+                            </div>
+                            <div className="p-6">
+                              <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2">{gig.category}</div>
+                              <h4 className="font-bold text-gray-900 line-clamp-1 mb-4 group-hover:text-emerald-600 transition-colors uppercase tracking-tight">{gig.title}</h4>
+                              <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                                <span className="text-[10px] font-black text-gray-400 uppercase">View gig</span>
+                                <ArrowRight className="w-4 h-4 text-emerald-600" />
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-20 bg-white border border-dashed border-gray-200 rounded-[2rem] p-12">
+                        <Briefcase className="w-16 h-16 text-gray-100 mx-auto mb-6" />
+                        <p className="text-gray-400 font-bold">No active service gigs available.</p>
+                      </div>
+                    )}
+                  </section>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
-
-        {/* Content Area */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-8"
-          >
-            {activeTab === 'profile' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="md:col-span-2 space-y-8">
-                  <section className="bg-[#121216] border border-white/5 rounded-[2rem] p-8">
-                    <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
-                      <Terminal className="w-4 h-4 text-indigo-500" />
-                      BIOGRAPHY & INTEL
-                    </h3>
-                    <p className="text-gray-400 leading-relaxed font-mono text-sm">
-                      {profile.bio || 'No biography data available for this operative.'}
-                    </p>
-                  </section>
-
-                  <section className="bg-[#121216] border border-white/5 rounded-[2rem] p-8">
-                    <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
-                      <Award className="w-4 h-4 text-indigo-500" />
-                      EXPERIENCE & BACKGROUND
-                    </h3>
-                    <p className="text-gray-400 leading-relaxed font-mono text-sm">
-                      {profile.experience || 'No experience data recorded.'}
-                    </p>
-                  </section>
-                </div>
-
-                <div className="space-y-8">
-                  <section className="bg-[#121216] border border-white/5 rounded-[2rem] p-8">
-                    <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
-                      <Zap className="w-4 h-4 text-indigo-500" />
-                      SKILL SET
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {profile.skills && profile.skills.length > 0 ? profile.skills.map((skill, i) => (
-                        <span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono text-indigo-400">
-                          {skill}
-                        </span>
-                      )) : (
-                        <span className="text-gray-500 font-mono text-xs italic">No skills listed.</span>
-                      )}
-                    </div>
-                  </section>
-
-                  <section className="bg-[#121216] border border-white/5 rounded-[2rem] p-8">
-                    <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
-                      <MapPin className="w-4 h-4 text-indigo-500" />
-                      LOCATION DATA
-                    </h3>
-                    <div className="space-y-4 font-mono text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-white/30">COUNTRY:</span>
-                        <span className="text-white">{profile.country || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-white/30">ADDRESS:</span>
-                        <span className="text-white text-right max-w-[150px] truncate">
-                          {profile.privacySettings?.showAddress ? profile.address : 'ENCRYPTED'}
-                        </span>
-                      </div>
-                    </div>
-                  </section>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'buyer' && (
-              <div className="space-y-8">
-                <section className="bg-[#121216] border border-white/5 rounded-[2rem] p-8">
-                  <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
-                    <ShoppingBag className="w-4 h-4 text-indigo-500" />
-                    BUYING INTERESTS
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="p-6 bg-white/5 rounded-2xl border border-white/5">
-                      <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest block mb-2">Primary Interest</span>
-                      <div className="text-lg font-black text-white">{profile.mainBusiness || 'Not specified'}</div>
-                    </div>
-                    <div className="p-6 bg-white/5 rounded-2xl border border-white/5">
-                      <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest block mb-2">Looking to Acquire</span>
-                      <div className="text-lg font-black text-white">{profile.lookingFor || 'Not specified'}</div>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="bg-[#121216] border border-white/5 rounded-[2rem] p-8">
-                  <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
-                    <Activity className="w-4 h-4 text-indigo-500" />
-                    BUYING HISTORY
-                  </h3>
-                  <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl">
-                    <Lock className="w-12 h-12 text-white/10 mx-auto mb-4" />
-                    <p className="text-white/30 font-mono text-xs">TRANSACTION HISTORY IS PRIVATE AND ENCRYPTED</p>
-                  </div>
-                </section>
-              </div>
-            )}
-
-            {activeTab === 'seller' && (
-              <div className="space-y-8">
-                <section className="bg-[#121216] border border-white/5 rounded-[2rem] p-8">
-                  <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
-                    <Globe className="w-4 h-4 text-indigo-500" />
-                    ACTIVE LISTINGS
-                  </h3>
-                  {listings.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {listings.map(listing => (
-                        <Link 
-                          key={listing.id} 
-                          to={`/listing/${listing.id}`}
-                          className="group bg-white/5 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all"
-                        >
-                          <div className="aspect-video relative overflow-hidden">
-                            <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                            <div className="absolute top-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-black text-white">
-                              {formatCurrency(listing.askingPrice)}
-                            </div>
-                          </div>
-                          <div className="p-4">
-                            <h4 className="font-bold text-sm text-white line-clamp-1 mb-2">{listing.title}</h4>
-                            <div className="flex items-center justify-between text-[10px] font-mono text-white/30">
-                              <span>{listing.category}</span>
-                              <span className="text-indigo-400">VIEW ASSET</span>
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl">
-                      <p className="text-white/30 font-mono text-xs">NO ACTIVE ASSETS FOUND FOR THIS OPERATIVE</p>
-                    </div>
-                  )}
-                </section>
-              </div>
-            )}
-
-            {activeTab === 'freelancer' && (
-              <div className="space-y-8">
-                <section className="bg-[#121216] border border-white/5 rounded-[2rem] p-8">
-                  <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
-                    <Briefcase className="w-4 h-4 text-indigo-500" />
-                    SERVICE GIGS
-                  </h3>
-                  {gigs.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {gigs.map(gig => (
-                        <Link 
-                          key={gig.id} 
-                          to={`/gig/${gig.id}`}
-                          className="group bg-white/5 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/50 transition-all"
-                        >
-                          <div className="aspect-video relative overflow-hidden">
-                            <img src={gig.images[0]} alt={gig.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                            <div className="absolute top-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-black text-white">
-                              FROM {formatCurrency(gig.price)}
-                            </div>
-                          </div>
-                          <div className="p-4">
-                            <h4 className="font-bold text-sm text-white line-clamp-1 mb-2">{gig.title}</h4>
-                            <div className="flex items-center justify-between text-[10px] font-mono text-white/30">
-                              <span>{gig.category}</span>
-                              <span className="text-indigo-400">VIEW GIG</span>
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl">
-                      <p className="text-white/30 font-mono text-xs">NO ACTIVE GIGS FOUND FOR THIS OPERATIVE</p>
-                    </div>
-                  )}
-                </section>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
       </div>
     </div>
   );

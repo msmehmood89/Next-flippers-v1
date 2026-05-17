@@ -7,6 +7,7 @@ import { useCart } from '../contexts/CartContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, ArrowRight, Chrome } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
+import Logo from '../components/Logo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -104,6 +105,9 @@ export default function Login() {
         className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-10"
       >
         <div className="text-center mb-10">
+          <div className="flex justify-center mb-6">
+            <Logo size="md" />
+          </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
           <p className="text-gray-500">Sign in to manage your listings and chats.</p>
         </div>

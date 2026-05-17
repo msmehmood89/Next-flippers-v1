@@ -9,6 +9,7 @@ import { UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Mail, Lock, Phone, ArrowRight, ShieldCheck, Globe, Users, Briefcase, ShoppingBag, AlertCircle, Chrome } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
+import Logo from '../components/Logo';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 
@@ -226,6 +227,9 @@ export default function Register() {
             className="max-w-xl w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12"
           >
             <div className="text-center mb-10">
+              <div className="flex justify-center mb-6">
+                <Logo size="md" />
+              </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
               <p className="text-gray-500">Join the Next Flippers community today.</p>
             </div>

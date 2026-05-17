@@ -9,6 +9,7 @@ import { User, CheckCircle2, AlertCircle, ArrowRight, Phone, Globe, Mail, X, Par
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import confetti from 'canvas-confetti';
+import Logo from '../components/Logo';
 
 export default function SetupUsername() {
   const { user, profile } = useAuth();
@@ -156,6 +157,9 @@ export default function SetupUsername() {
               </button>
 
               <div className="p-8 md:p-12 text-center">
+                <div className="flex justify-center mb-8">
+                  <Logo size="md" />
+                </div>
                 <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
                   <PartyPopper className="w-10 h-10" />
                 </div>
@@ -200,6 +204,9 @@ export default function SetupUsername() {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-xl w-full bg-white rounded-[3rem] p-8 md:p-12 shadow-2xl border border-gray-100"
       >
+        <div className="flex justify-center mb-8">
+          <Logo size="md" />
+        </div>
         <div className="w-20 h-20 bg-indigo-100 rounded-3xl flex items-center justify-center text-indigo-600 mx-auto mb-8">
           <User className="w-10 h-10" />
         </div>

@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import Logo from './Logo';
 
+import footerLogo from '../assets/images/regenerated_image_1778753270956.jpg';
+
 export default function Footer() {
   const currentYear = new Date().getFullYear();
 
@@ -15,8 +17,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-20">
           {/* Brand */}
           <div className="space-y-6">
-            <Link to="/" className="hover:opacity-90 transition-opacity">
-              <Logo size="md" />
+            <Link to="/" className="hover:opacity-90 transition-opacity block -ml-2">
+              <Logo size="lg" className="scale-125 origin-left" src={footerLogo} />
             </Link>
             <p className="text-sm text-gray-500 leading-relaxed max-w-xs">
               The world's most trusted manual escrow marketplace for buying and selling digital assets. Secure, fast, and transparent.

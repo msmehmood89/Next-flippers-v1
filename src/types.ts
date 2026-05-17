@@ -11,6 +11,7 @@ export interface UserProfile {
   role: 'buyer' | 'seller' | 'admin' | 'freelancer';
   isAdmin?: boolean;
   status: 'active' | 'inactive';
+  isVerified?: boolean;
   lastActiveAt?: Timestamp;
   createdAt: Timestamp;
   photoURL?: string;

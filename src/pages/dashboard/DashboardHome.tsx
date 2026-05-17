@@ -20,6 +20,8 @@ export default function DashboardHome() {
     purchases: 0,
     sales: 0,
     favorites: 0,
+    orders: 0,
+    portfolioValue: 0
   });
   const [recentListings, setRecentListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,24 +50,33 @@ export default function DashboardHome() {
     const fetchStats = async () => {
       if (!user) return;
       try {
+        // 1. Fetch user's listings
         const listingsQ = query(collection(db, 'listings'), where('userId', '==', user.uid));
         const listingsSnap = await getDocs(listingsQ);
+        const myListingDocs = listingsSnap.docs.map(d => d.data() as Listing);
         
+        // 2. Calculate Portfolio Value (Sum of all listing prices)
+        const portfolioValue = myListingDocs.reduce((acc, curr) => acc + (curr.askingPrice || 0), 0);
+        
+        // 3. Fetch Purchases (As a buyer)
         const purchasesQ = query(collection(db, 'transactions'), where('buyerId', '==', user.uid));
         const purchasesSnap = await getDocs(purchasesQ);
 
+        // 4. Fetch Sales (As a seller)
         const salesQ = query(collection(db, 'transactions'), where('sellerId', '==', user.uid));
         const salesSnap = await getDocs(salesQ);
 
-        const messagesQ = query(collection(db, 'chats'), where('buyerId', '==', user.uid));
-        const messagesSnap = await getDocs(messagesQ);
+        // 5. Total Orders is the sum of purchases and sales
+        const totalOrders = purchasesSnap.size + salesSnap.size;
 
         setStats({
           listings: listingsSnap.size,
           purchases: purchasesSnap.size,
           sales: salesSnap.size,
-          messages: messagesSnap.size,
+          messages: 0, // Placeholder for chats if not implemented
           favorites: profile?.favorites?.length || 0,
+          orders: totalOrders,
+          portfolioValue
         });
 
         const recentQ = query(
@@ -124,16 +135,16 @@ export default function DashboardHome() {
                 <div className="grid grid-cols-1 gap-4 mb-10">
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100/50 text-left">
                     <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-emerald-500">
-                      {regMethod === 'email' ? <Shield className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+                      {regMethod === 'email' ? <Globe className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
                     </div>
                     <div>
                       <div className="text-sm font-black text-gray-900">
                         {regMethod === 'email' 
-                          ? 'Please make sure to safe your email and password' 
-                          : 'Email Verified'}
+                          ? 'Welcome to the marketplace' 
+                          : 'Account Active'}
                       </div>
                       <div className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                        {regMethod === 'email' ? 'Security Notice' : 'Account Secure'}
+                        {regMethod === 'email' ? 'Notification' : 'Secure Access'}
                       </div>
                     </div>
                   </div>
@@ -170,55 +181,63 @@ export default function DashboardHome() {
             <PlusCircle className="w-4 h-4" />
             Create Listing
           </Link>
-          <button className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-50 transition-all">
-            <TrendingUp className="w-4 h-4" />
-            Write Blog
-          </button>
         </div>
       </div>
 
-      {/* Primary Stats Grid - Deelzo Style */}
+      {/* Primary Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Listings', value: stats.listings, sub: '0 active', icon: List, color: 'text-blue-500' },
-          { label: 'Total Views', value: '0', sub: 'All time', icon: Globe, color: 'text-emerald-500' },
-          { label: 'Total Bids', value: '0', sub: 'Received', icon: MessageSquare, color: 'text-purple-500' },
-          { label: 'Portfolio Value', value: '$0', sub: 'Total listings value', icon: DollarSign, color: 'text-amber-500' },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-[1.5rem] border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <div className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest leading-tight">{stat.label}</div>
-                <div className="text-3xl font-black text-gray-900 mt-1.5">{stat.value}</div>
-                <div className="text-[10px] font-bold text-gray-400 mt-1 italic opacity-80">{stat.sub}</div>
+          { label: 'Total Listings', value: (stats as any).listings, sub: 'All assets', icon: List },
+          { label: 'Total Sales', value: (stats as any).sales, sub: 'Sold assets', icon: Globe },
+          { label: 'Total Orders', value: (stats as any).orders || 0, sub: 'Purchases & Sales', icon: ShoppingBag },
+          { label: 'Portfolio Value', value: formatCurrency((stats as any).portfolioValue || 0), sub: 'Total listings value', icon: DollarSign },
+        ].map((stat, i) => {
+          const cardStyles = [
+            { bg: 'bg-[#A8bd22]', text: 'text-black', iconBg: 'bg-black/10', iconText: 'text-black', subText: 'text-black/60' },
+            { bg: 'bg-[#0d8c35]', text: 'text-white', iconBg: 'bg-white/20', iconText: 'text-white', subText: 'text-white/70' },
+            { bg: 'bg-[#Ffb704]', text: 'text-black', iconBg: 'bg-black/10', iconText: 'text-black', subText: 'text-black/60' },
+            { bg: 'bg-[#F85700]', text: 'text-white', iconBg: 'bg-white/20', iconText: 'text-white', subText: 'text-white/70' },
+          ];
+          const style = cardStyles[i];
+          
+          return (
+            <div key={i} className={cn(
+              "p-6 rounded-[1.5rem] border border-white/10 shadow-sm flex flex-col relative overflow-hidden group hover:shadow-md transition-all duration-300",
+              style.bg
+            )}>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <div className={cn("text-[11px] font-extrabold uppercase tracking-widest leading-tight", style.subText)}>{stat.label}</div>
+                  <div className={cn("text-3xl font-black mt-1.5", style.text)}>{stat.value}</div>
+                  <div className={cn("text-[10px] font-bold mt-1 italic opacity-80", style.subText)}>{stat.sub}</div>
+                </div>
+                <div className={cn("p-2.5 rounded-xl transition-colors", style.iconBg, style.iconText)}>
+                  <stat.icon className="w-5 h-5" />
+                </div>
               </div>
-              <div className={cn("p-2.5 rounded-xl bg-gray-50 transition-colors group-hover:bg-gray-100", stat.color)}>
-                <stat.icon className="w-5 h-5" />
-              </div>
+              <div className="absolute bottom-0 left-0 h-1 bg-black/10 w-8 transition-all duration-500 group-hover:w-full" />
             </div>
-            <div className={cn("absolute bottom-0 left-0 h-1 transition-all duration-500 group-hover:w-full", i === 0 ? "bg-blue-500 w-8" : i === 1 ? "bg-emerald-500 w-8" : i === 2 ? "bg-purple-500 w-8" : "bg-amber-500 w-8")} />
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Colored Status Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Active', value: stats.listings, icon: Globe, bg: 'bg-emerald-500' },
-          { label: 'Pending', value: '0', icon: TrendingUp, bg: 'bg-amber-500' },
-          { label: 'Sold', value: stats.sales, icon: ShoppingBag, bg: 'bg-blue-500' },
-          { label: 'Blogs', value: '0', icon: List, bg: 'bg-purple-500' },
-          { label: 'Rating', value: '0.0', icon: Heart, bg: 'bg-rose-500' },
+          { label: 'Active', value: (stats as any).listings, icon: Globe, bg: 'bg-[#8edf0c]' },
+          { label: 'Purchases', value: (stats as any).purchases, icon: ShoppingBag, bg: 'bg-[#94ff6e]' },
+          { label: 'Sales', value: (stats as any).sales, icon: TrendingUp, bg: 'bg-[#ffb703]' },
+          { label: 'Rating', value: profile?.rating || '5.0', icon: Heart, bg: 'bg-[#fb8500]' },
         ].map((item, i) => (
-          <div key={i} className={cn("p-4 rounded-2xl text-white flex flex-col items-center justify-center text-center shadow-sm", item.bg)}>
+          <div key={i} className={cn("p-4 rounded-2xl text-black flex flex-col items-center justify-center text-center shadow-sm", item.bg)}>
             <item.icon className="w-6 h-6 mb-2 opacity-80" />
-            <div className="text-[10px] font-bold uppercase tracking-widest opacity-90">{item.label}</div>
+            <div className="text-[10px] font-black uppercase tracking-widest opacity-90">{item.label}</div>
             <div className="text-2xl font-black mt-1">{item.value}</div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Recent Listings Section */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
@@ -272,35 +291,10 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* Recent Blogs Section */}
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-            <div>
-              <h2 className="text-lg font-black text-gray-900 tracking-tight">Recent Blogs</h2>
-              <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">Your latest articles</p>
-            </div>
-            <button className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:gap-2 transition-all uppercase tracking-widest">
-              View All <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-          
-          <div className="p-6">
-            <div className="py-20 flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 mb-4 border border-gray-100">
-                <MessageSquare className="w-8 h-8" />
-              </div>
-              <h3 className="text-gray-900 font-black tracking-tight">No blogs yet</h3>
-              <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mt-1 mb-6">Share your knowledge with the community</p>
-              <button className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-600 transition-all flex items-center gap-2">
-                <PlusCircle className="w-4 h-4" />
-                Write Blog
-              </button>
-            </div>
-          </div>
-        </div>
+
       </div>
 
-      {/* User Info Footer Card - Deelzo Style */}
+      {/* User Info Footer Card */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="h-24 bg-gradient-to-r from-emerald-400 to-teal-500" />
         <div className="px-8 pb-8 -mt-12 text-center">
@@ -313,9 +307,6 @@ export default function DashboardHome() {
                   profile?.name?.[0] || 'U'
                 )}
               </div>
-            </div>
-            <div className="absolute bottom-1 right-2 w-6 h-6 bg-emerald-500 border-2 border-white rounded-full flex items-center justify-center text-white">
-              <Shield className="w-3 h-3" />
             </div>
           </div>
           <h2 className="text-2xl font-black text-gray-900 mt-4 tracking-tight">{profile?.name}</h2>

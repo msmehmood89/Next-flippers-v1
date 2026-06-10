@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc, increment, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc, increment, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Listing, Transaction } from '../types';
+import { Listing, Transaction, UserProfile } from '../types';
 import { formatCurrency, calculateCommission, cn, resizeImage, createNotification } from '../lib/utils';
 import { useAuth } from '../App';
 import { useCart } from '../contexts/CartContext';
@@ -10,7 +10,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import LoadingScreen from '../components/LoadingScreen';
 import { 
   Shield, DollarSign, ArrowRight, CheckCircle2, 
-  Info, AlertCircle, Phone, Globe, Upload, ChevronLeft
+  Info, AlertCircle, Phone, Globe, Upload, ChevronLeft,
+  MessageSquare
 } from 'lucide-react';
 
 export default function PaymentInstructions() {
@@ -26,6 +27,12 @@ export default function PaymentInstructions() {
   const [paymentProof, setPaymentProof] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'bank' | 'binance' | 'crypto'>('bank');
+  
+  // New State variables for Buyer-Seller contact & Price Negotiation
+  const [sellerProfile, setSellerProfile] = useState<UserProfile | null>(null);
+  const [isBargained, setIsBargained] = useState(false);
+  const [bargainedInput, setBargainedInput] = useState('');
+  const [isContacting, setIsContacting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,6 +41,7 @@ export default function PaymentInstructions() {
         const txIdsParam = searchParams.get('txIds');
         const listingIdsParam = searchParams.get('listingIds');
         const gigIdsParam = searchParams.get('gigIds');
+        let sId = '';
 
         if (txIdsParam) {
           const ids = txIdsParam.split(',');
@@ -41,7 +49,11 @@ export default function PaymentInstructions() {
             const snap = await getDoc(doc(db, 'transactions', id));
             return snap.exists() ? { id: snap.id, ...snap.data() } as Transaction : null;
           }));
-          setBatchTransactions(txs.filter(t => t !== null) as Transaction[]);
+          const filteredTxs = txs.filter(t => t !== null) as Transaction[];
+          setBatchTransactions(filteredTxs);
+          if (filteredTxs.length > 0) {
+            sId = filteredTxs[0].sellerId;
+          }
         } else if (listingIdsParam || gigIdsParam) {
           const lIds = listingIdsParam ? listingIdsParam.split(',') : [];
           const gIds = gigIdsParam ? gigIdsParam.split(',') : [];
@@ -65,15 +77,29 @@ export default function PaymentInstructions() {
           }
           
           setCartItems(items);
+          if (items.length > 0) {
+            sId = items[0].userId || items[0].sellerId;
+          }
         } else if (listingId) {
           const docSnap = await getDoc(doc(db, 'listings', listingId));
           if (docSnap.exists()) {
-            setListing({ id: docSnap.id, ...docSnap.data() } as Listing);
+            const data = { id: docSnap.id, ...docSnap.data() } as Listing;
+            setListing(data);
+            sId = data.userId;
           }
         } else if (gigId) {
           const docSnap = await getDoc(doc(db, 'gigs', gigId));
           if (docSnap.exists()) {
-            setGig({ id: docSnap.id, ...docSnap.data() });
+            const data = { id: docSnap.id, ...docSnap.data() } as any;
+            setGig(data);
+            sId = data.userId;
+          }
+        }
+
+        if (sId) {
+          const sSnap = await getDoc(doc(db, 'users', sId));
+          if (sSnap.exists()) {
+            setSellerProfile({ uid: sSnap.id, ...sSnap.data() } as UserProfile);
           }
         }
       } catch (error) {
@@ -84,6 +110,77 @@ export default function PaymentInstructions() {
     };
     fetchData();
   }, [listingId, gigId]);
+
+  const handleDirectChat = async () => {
+    if (!user) {
+      alert('Please login first.');
+      return;
+    }
+    
+    let sellerId = '';
+    let targetListingId = '';
+    let targetListingTitle = '';
+    
+    if (listing) {
+      sellerId = listing.userId;
+      targetListingId = listing.id;
+      targetListingTitle = listing.title;
+    } else if (gig) {
+      sellerId = gig.userId;
+      targetListingId = gig.id;
+      targetListingTitle = gig.title;
+    } else if (cartItems.length > 0) {
+      sellerId = cartItems[0].userId || cartItems[0].sellerId;
+      targetListingId = cartItems[0].id;
+      targetListingTitle = cartItems[0].title;
+    } else if (batchTransactions.length > 0) {
+      sellerId = batchTransactions[0].sellerId;
+      targetListingId = batchTransactions[0].listingId || '';
+    }
+
+    if (!sellerId) {
+      alert('Seller details not found.');
+      return;
+    }
+
+    if (sellerId === user.uid) {
+      alert('You cannot start a chat with yourself.');
+      return;
+    }
+
+    setIsContacting(true);
+    try {
+      // Check if chat already exists
+      const q = query(
+        collection(db, 'chats'),
+        where('buyerId', '==', user.uid),
+        where('sellerId', '==', sellerId),
+        where('listingId', '==', targetListingId)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        navigate(`/chat/${snapshot.docs[0].id}`);
+      } else {
+        // Create new chat
+        const newChat = await addDoc(collection(db, 'chats'), {
+          buyerId: user.uid,
+          sellerId: sellerId,
+          listingId: targetListingId,
+          listingTitle: targetListingTitle || null,
+          lastMessage: `Hi, I am ready to order "${targetListingTitle || 'your asset'}". Is it currently active and available?`,
+          lastMessageAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+        });
+        navigate(`/chat/${newChat.id}`);
+      }
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      alert('Could not start direct chat.');
+    } finally {
+      setIsContacting(false);
+    }
+  };
 
   const handleSubmitProof = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,18 +224,18 @@ export default function PaymentInstructions() {
         // Create transactions for cart items
         const newTxIds: string[] = [];
         for (const item of cartItems) {
-          const price = item.type === 'listing' ? item.askingPrice : item.price;
-          const { platformFee, transactionFee, total: commissionTotal } = calculateCommission(price);
-          const totalAmount = price + commissionTotal;
+          const priceVal = item.type === 'listing' ? item.askingPrice : item.price;
+          const { platformFee: pf, transactionFee: tf, total: commissionTotal } = calculateCommission(priceVal);
+          const totalAmount = priceVal + commissionTotal;
 
           const transactionData = {
             listingId: item.type === 'listing' ? item.id : null,
             gigId: item.type === 'gig' ? item.id : null,
             buyerId: user.uid,
-            sellerId: item.userId,
-            salePrice: price,
-            platformFee,
-            transactionFee,
+            sellerId: item.userId || item.sellerId,
+            salePrice: priceVal,
+            platformFee: pf,
+            transactionFee: tf,
             commissionAmount: commissionTotal,
             totalPaid: totalAmount,
             paymentMethod,
@@ -155,7 +252,7 @@ export default function PaymentInstructions() {
 
           // Notify Seller
           createNotification(
-            item.userId,
+            item.userId || item.sellerId,
             'New Order Received! 📦',
             `You have a new order for "${item.title}". Check your sales dashboard for payment confirmation.`,
             'system',
@@ -177,26 +274,31 @@ export default function PaymentInstructions() {
         alert('Payment proof submitted for all selected items! Admin will verify soon.');
         navigate('/dashboard/purchases');
       } else {
-        const price = listing ? listing.askingPrice : gig.price;
-        const { platformFee, transactionFee, total: commissionTotal } = calculateCommission(price);
-        const totalAmount = price + commissionTotal;
+        // Single item transaction with bargaining support
+        const finalPrice = price; // Lexically resolve from render calculation
+        const finalPlatformFee = platformFee;
+        const finalTransactionFee = transactionFee;
+        const finalCommissionAmount = commissionTotal;
+        const finalTotalPaid = total;
 
         const transactionData = {
           listingId: listing?.id || null,
           gigId: gig?.id || null,
           buyerId: user.uid,
           sellerId: listing?.userId || gig?.userId,
-          salePrice: price,
-          platformFee,
-          transactionFee,
-          commissionAmount: commissionTotal,
-          totalPaid: totalAmount,
+          salePrice: finalPrice,
+          platformFee: finalPlatformFee,
+          transactionFee: finalTransactionFee,
+          commissionAmount: finalCommissionAmount,
+          totalPaid: finalTotalPaid,
           paymentMethod,
           paymentProofImage: paymentProof,
           status: 'pending',
           dealStatus: 'payment_pending',
           type: listing ? 'listing' : 'gig',
           createdAt: serverTimestamp(),
+          isNegotiated: negotiatedValue !== null,
+          originalPrice: originalPrice,
         };
 
         const txDoc = await addDoc(collection(db, 'transactions'), transactionData);
@@ -206,7 +308,7 @@ export default function PaymentInstructions() {
         await createNotification(
           'admin',
           'New Payment Verification Requested',
-          `A new payment proof has been submitted for ${itemTitle} (${formatCurrency(totalAmount)}).`,
+          `A new payment proof has been submitted for ${itemTitle} (${formatCurrency(finalTotalPaid)}).`,
           'payment_verification',
           '/admin'
         );
@@ -225,17 +327,24 @@ export default function PaymentInstructions() {
   if (loading) return <LoadingScreen />;
   if (!listing && !gig && batchTransactions.length === 0 && cartItems.length === 0) return <div className="p-20 text-center">Item not found.</div>;
 
-  const getPrice = () => {
+  const getOriginalPrice = () => {
     if (batchTransactions.length > 0) {
       return batchTransactions.reduce((acc, tx) => acc + tx.salePrice, 0);
     }
     if (cartItems.length > 0) {
       return cartItems.reduce((acc, item) => acc + (item.askingPrice || item.price), 0);
     }
-    return listing ? listing.askingPrice : gig.price;
+    return listing ? listing.askingPrice : (gig ? gig.price : 0);
   };
 
-  const price = getPrice();
+  const originalPrice = getOriginalPrice();
+  
+  // Verify bargained price input
+  const negotiatedValue = isBargained && bargainedInput && Number(bargainedInput) > 0 && Number(bargainedInput) < originalPrice
+    ? Number(bargainedInput) 
+    : null;
+
+  const price = negotiatedValue !== null ? negotiatedValue : originalPrice;
   const { platformFee, transactionFee, total: commissionTotal } = calculateCommission(price);
   const total = price + commissionTotal;
 
@@ -263,6 +372,18 @@ export default function PaymentInstructions() {
     }
   };
 
+  const getWhatsAppUrl = () => {
+    if (!sellerProfile?.whatsappNumber) {
+      return 'https://wa.me/923057341215'; // Support fallback
+    }
+    let num = sellerProfile.whatsappNumber.replace(/[^0-9]/g, '');
+    if (num.startsWith('0')) {
+      num = '92' + num.substring(1);
+    }
+    const textMsg = `Assalamu Alaikum / Hello, I am ready to purchase your asset "${itemTitle}". Is it still available?`;
+    return `https://wa.me/${num}?text=${encodeURIComponent(textMsg)}`;
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen pb-20">
       <div className="bg-white border-b border-gray-200 py-4">
@@ -284,6 +405,54 @@ export default function PaymentInstructions() {
               <p className="text-gray-500">Follow these steps to complete your {listing ? 'purchase' : 'order'} securely.</p>
             </header>
 
+            {/* Seller Contact & Verification Alert Block */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-3xl p-6 shadow-sm">
+              <div className="flex gap-4 items-start">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 shrink-0">
+                  <AlertCircle className="w-6 h-6 animate-pulse" />
+                </div>
+                <div className="space-y-3 flex-1 text-left">
+                  <h3 className="font-extrabold text-amber-950 text-base leading-tight">Verify Asset Availability!</h3>
+                  <p className="text-amber-900 text-sm leading-relaxed">
+                    Please contact the seller before making the payment to verify that this service/asset (<strong>{itemTitle}</strong>) is active and currently available.
+                  </p>
+                  
+                  <div className="flex flex-wrap gap-3 pt-1">
+                    {/* Direct Live Chat Button */}
+                    <button
+                      type="button"
+                      onClick={handleDirectChat}
+                      disabled={isContacting}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-md active:scale-95"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      {isContacting ? 'Opening on-site chat...' : 'Chat on Site'}
+                    </button>
+                    
+                    {/* WhatsApp Chat Button */}
+                    <a
+                      href={getWhatsAppUrl()}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-md active:scale-95"
+                    >
+                      <Phone className="w-4 h-4" />
+                      {sellerProfile?.whatsappNumber ? 'Chat on WhatsApp' : 'Contact Support WhatsApp'}
+                    </a>
+                  </div>
+                  
+                  {sellerProfile && (
+                    <div className="mt-2 text-xs text-amber-900">
+                      <strong>Seller Name:</strong> {sellerProfile.name} 
+                      {sellerProfile.whatsappNumber && (
+                        <span> | <strong>WhatsApp:</strong> {sellerProfile.whatsappNumber}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Order Summary */}
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
               <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
@@ -301,7 +470,16 @@ export default function PaymentInstructions() {
                       <div className="text-xs text-gray-400">{itemSub}</div>
                     </div>
                   </div>
-                  <div className="font-bold text-gray-900">{formatCurrency(price)}</div>
+                  <div className="font-bold text-gray-900">
+                    {negotiatedValue !== null ? (
+                      <div className="text-right">
+                        <span className="text-sm line-through text-gray-400 mr-2">{formatCurrency(originalPrice)}</span>
+                        <span className="text-indigo-600">{formatCurrency(price)}</span>
+                      </div>
+                    ) : (
+                      formatCurrency(price)
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between items-center text-sm text-gray-500">
                   <span>Platform Fee (5%)</span>
@@ -313,8 +491,84 @@ export default function PaymentInstructions() {
                 </div>
                 <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                   <span className="text-lg font-bold text-gray-900">Total to Pay</span>
-                  <span className="text-3xl font-bold text-indigo-600">{formatCurrency(total)}</span>
+                  <span className="text-3xl font-bold text-indigo-600">
+                    {formatCurrency(total)}
+                  </span>
                 </div>
+
+                {/* Bargaining / Discount System integration */}
+                {(!batchTransactions.length && !cartItems.length) && (
+                  <div className="mt-6 pt-6 border-t border-gray-100 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5 text-left">
+                        <label className="text-sm font-extrabold text-gray-900 block">Apply Negotiated / Bargained Price?</label>
+                        <span className="text-xs text-gray-400 block">If you have negotiated a discount with the seller, you can apply and enter the agreed price here.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsBargained(!isBargained);
+                          if (isBargained) setBargainedInput('');
+                        }}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2",
+                          isBargained ? 'bg-indigo-600' : 'bg-gray-200'
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                            isBargained ? 'translate-x-5' : 'translate-x-0'
+                          )}
+                        />
+                      </button>
+                    </div>
+
+                    <AnimatePresence>
+                      {isBargained && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden space-y-3"
+                        >
+                          <div className="flex gap-2 items-center">
+                            <div className="relative flex-1">
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span className="text-gray-500 sm:text-sm">$</span>
+                              </div>
+                              <input
+                                type="number"
+                                value={bargainedInput}
+                                onChange={(e) => setBargainedInput(e.target.value)}
+                                placeholder={`Enter discounted price (original: ${originalPrice})`}
+                                className="block w-full pl-8 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 text-sm font-bold text-left"
+                                min="1"
+                                max={originalPrice - 1}
+                              />
+                              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <span className="text-gray-400 sm:text-sm">USD</span>
+                              </div>
+                            </div>
+                            {negotiatedValue && negotiatedValue > 0 && negotiatedValue < originalPrice && (
+                              <div className="text-xs text-green-600 font-bold bg-green-50 px-3 py-2 rounded-xl shrink-0">
+                                Discount: {((1 - negotiatedValue / originalPrice) * 100).toFixed(0)}% Off!
+                              </div>
+                            )}
+                          </div>
+                          {Number(bargainedInput) >= originalPrice && (
+                            <p className="text-xs text-amber-600 font-bold text-left">
+                              The bargained price must be less than the original price.
+                            </p>
+                          )}
+                          <p className="text-[10px] text-gray-400 text-left">
+                            * Note: The administrator will review your chat history and messages with the seller to verify the discounted/negotiated price upon verifying your payment proof.
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
             </div>
 

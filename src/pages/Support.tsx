@@ -19,6 +19,7 @@ export default function Support() {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [userReply, setUserReply] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     subject: '',
     category: 'general',
@@ -407,18 +408,16 @@ export default function Support() {
             </motion.div>
           </div>
         </div>
-      </div>
-
-      {/* Ticket Details Modal */}
+      </div>      {/* Ticket Details Modal */}
       <AnimatePresence>
         {selectedTicket && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedTicket(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -430,18 +429,15 @@ export default function Support() {
               <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                 <div className="flex items-center gap-4">
                   <div className={cn(
-                    "w-3 h-3 rounded-full",
-                    selectedTicket.status === 'open' ? "bg-amber-500" : 
-                    selectedTicket.status === 'in-progress' ? "bg-blue-500" :
-                    "bg-green-500"
+                    "w-3.5 h-3.5 rounded-full ring-4",
+                    selectedTicket.status === 'open' ? "bg-amber-500 ring-amber-100 animate-pulse" : 
+                    selectedTicket.status === 'in-progress' ? "bg-blue-500 ring-blue-100 animate-pulse" :
+                    selectedTicket.status === 'closed' ? "bg-gray-400 ring-gray-100" :
+                    "bg-green-500 ring-green-100"
                   )} />
                   <div>
-                    <h3 className="text-xl font-black text-gray-900">{selectedTicket.subject}</h3>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedTicket.category}</span>
-                      <span className="text-[10px] font-black text-gray-300">•</span>
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ID: {selectedTicket.id.slice(0, 8)}</span>
-                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Ticket Details</span>
+                    <h3 className="text-lg font-black text-gray-900 leading-tight">ID: #{selectedTicket.id.slice(0, 8).toUpperCase()}</h3>
                   </div>
                 </div>
                 <button 
@@ -454,98 +450,223 @@ export default function Support() {
 
               {/* Modal Content */}
               <div className="flex-grow overflow-y-auto p-8 space-y-8">
-                {/* Original Message */}
-                <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Your Message</span>
-                    <span className="text-[10px] font-bold text-gray-400">{selectedTicket.createdAt?.toDate().toLocaleString()}</span>
+                {/* Structured Ticket details card */}
+                <div className="bg-gradient-to-br from-indigo-50/50 via-white to-gray-50/50 rounded-3xl p-6 border border-indigo-100/50 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Support Request Card</span>
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-white shadow-sm",
+                      selectedTicket.status === 'open' ? "bg-amber-500" : 
+                      selectedTicket.status === 'in-progress' ? "bg-blue-500" :
+                      selectedTicket.status === 'closed' ? "bg-gray-500" :
+                      "bg-green-600"
+                    )}>
+                      {selectedTicket.status}
+                    </span>
                   </div>
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedTicket.message}</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-bold text-gray-500">
+                    <div className="p-3 bg-white/80 rounded-xl border border-gray-100">
+                      <span className="block text-[9px] uppercase font-black text-gray-400 tracking-wider mb-0.5">Category</span>
+                      <span className={cn(
+                        "inline-block px-2 py-0.5 rounded text-[10px] uppercase font-black tracking-widest mt-0.5",
+                        selectedTicket.category === 'billing' ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                        selectedTicket.category === 'technical' ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                        selectedTicket.category === 'report' ? "bg-orange-50 text-orange-700 border border-orange-100" :
+                        selectedTicket.category === 'general' ? "bg-indigo-50 text-indigo-700 border border-indigo-100" :
+                        "bg-gray-50 text-gray-700 border border-gray-100"
+                      )}>
+                        {selectedTicket.category === 'billing' ? "💼 Billing & Payments" :
+                         selectedTicket.category === 'technical' ? "⚙️ Technical Issue" :
+                         selectedTicket.category === 'report' ? "⚠️ Report User" :
+                         selectedTicket.category === 'general' ? "ℹ️ General Inquiry" :
+                         `📁 ${selectedTicket.category || 'Other'}`}
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-white/80 rounded-xl border border-gray-100">
+                      <span className="block text-[9px] uppercase font-black text-gray-400 tracking-wider mb-0.5">Submitted On</span>
+                      <span className="text-gray-900">
+                        {selectedTicket.createdAt?.toDate 
+                          ? selectedTicket.createdAt.toDate().toLocaleString() 
+                          : (selectedTicket.createdAt ? new Date(selectedTicket.createdAt).toLocaleString() : 'Syncing...')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-100 shadow-inner">
+                    <span className="block text-[9px] uppercase font-black text-indigo-600 tracking-widest">Subject Of Discussion</span>
+                    <h4 className="text-base font-extrabold text-gray-900 leading-snug">{selectedTicket.subject}</h4>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="block text-[9px] uppercase font-black text-gray-400 tracking-widest ml-1">Original Issue Details</span>
+                    <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 text-sm text-gray-800 leading-relaxed whitespace-pre-wrap relative italic">
+                      <span className="absolute -top-3 left-4 text-4xl text-indigo-200/50 font-serif translate-y-1">“</span>
+                      <p className="relative z-10 pl-2">{selectedTicket.message}</p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Replies */}
+                {/* Conversation History */}
                 <div className="space-y-6">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Conversation</h4>
+                  <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                    <MessageSquare className="w-4 h-4 text-indigo-600" />
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Conversation Thread</h4>
+                  </div>
                   {selectedTicket.replies && selectedTicket.replies.length > 0 ? (
-                    selectedTicket.replies.map((reply: any, i: number) => (
-                      <div 
-                        key={i} 
-                        className={cn(
-                          "rounded-3xl p-6 border transition-all",
-                          reply.isAdmin 
-                            ? "bg-indigo-50 border-indigo-100 ml-8" 
-                            : "bg-gray-50 border-gray-100 mr-8"
-                        )}
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <span className={cn(
-                            "text-[10px] font-black uppercase tracking-widest",
-                            reply.isAdmin ? "text-indigo-600" : "text-gray-500"
-                          )}>
-                            {reply.isAdmin ? "Support Agent" : "You"}
-                          </span>
-                          <span className="text-[10px] font-bold text-gray-400">
-                            {reply.createdAt?.toDate ? reply.createdAt.toDate().toLocaleString() : new Date(reply.createdAt).toLocaleString()}
-                          </span>
+                    <div className="space-y-6">
+                      {selectedTicket.replies.map((reply: any, i: number) => (
+                        <div 
+                          key={i} 
+                          className={cn(
+                            "rounded-3xl p-5 border shadow-sm transition-all relative",
+                            reply.isAdmin 
+                              ? "bg-indigo-50/60 border-indigo-100 ml-8" 
+                              : "bg-gray-50 border-gray-100 mr-8"
+                          )}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={cn(
+                              "text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5",
+                              reply.isAdmin ? "text-indigo-600" : "text-gray-500"
+                            )}>
+                              {reply.isAdmin ? (
+                                <>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                  🛡️ NextFlippers Support Agent
+                                </>
+                              ) : "You"}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400">
+                              {reply.createdAt?.toDate ? reply.createdAt.toDate().toLocaleString() : new Date(reply.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{reply.message}</p>
                         </div>
-                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{reply.message}</p>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   ) : (
                     <div className="text-center py-8 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
-                      <Clock className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                      <p className="text-[11px] text-gray-400 font-bold">Waiting for support response...</p>
+                      <Clock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-[11px] text-gray-400 font-bold">Waiting for support team response...</p>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Modal Footer */}
-              {selectedTicket.status !== 'closed' ? (
-                <div className="p-8 border-t border-gray-100 bg-gray-50/50">
-                  <div className="space-y-4">
-                    <textarea
-                      rows={3}
-                      placeholder="Type your reply here..."
-                      className="w-full px-6 py-4 bg-white border border-gray-200 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all resize-none"
-                      value={userReply}
-                      onChange={(e) => setUserReply(e.target.value)}
-                    />
-                    <div className="flex items-center justify-between">
+              <div className="p-8 border-t border-gray-100 bg-gray-50/50">
+                <div className="space-y-4">
+                  {selectedTicket.status !== 'closed' && selectedTicket.status !== 'resolved' ? (
+                    <>
+                      <textarea
+                        rows={3}
+                        placeholder="Type your reply to support message..."
+                        className="w-full px-6 py-4 bg-white border border-gray-200 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all resize-none shadow-inner"
+                        value={userReply}
+                        onChange={(e) => setUserReply(e.target.value)}
+                      />
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                          <button
+                            type="button"
+                            disabled={isUpdatingStatus !== null}
+                            onClick={async () => {
+                              setIsUpdatingStatus('resolved');
+                              try {
+                                const newStatus = 'resolved';
+                                await updateDoc(doc(db, 'support_tickets', selectedTicket.id), { status: newStatus });
+                                setSelectedTicket(prev => ({ ...prev, status: newStatus }));
+                              } catch (error) {
+                                console.error('Error updating status:', error);
+                                alert('Failed to mark support ticket as resolved.');
+                              } finally {
+                                setIsUpdatingStatus(null);
+                              }
+                            }}
+                            className="px-4 py-2.5 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-all inline-flex items-center gap-1.5"
+                          >
+                            {isUpdatingStatus === 'resolved' ? (
+                              <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                            ) : null}
+                            Mark as Resolved
+                          </button>
+                          
+                          <button
+                            type="button"
+                            disabled={isUpdatingStatus !== null}
+                            onClick={async () => {
+                              setIsUpdatingStatus('closed');
+                              try {
+                                const newStatus = 'closed';
+                                await updateDoc(doc(db, 'support_tickets', selectedTicket.id), { status: newStatus });
+                                setSelectedTicket(prev => ({ ...prev, status: newStatus }));
+                              } catch (error) {
+                                console.error('Error updating status:', error);
+                                alert('Failed to close support ticket.');
+                              } finally {
+                                setIsUpdatingStatus(null);
+                              }
+                            }}
+                            className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all inline-flex items-center gap-1.5"
+                          >
+                            {isUpdatingStatus === 'closed' ? (
+                              <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                            ) : null}
+                            Close Ticket
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={handleUserReply}
+                          disabled={isReplying || !userReply.trim()}
+                          className="px-8 py-3 bg-indigo-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-150 disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {isReplying ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <>
+                              <Send className="w-4 h-4" />
+                              Send Reply
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white/50 border border-gray-100 rounded-2xl">
+                      <div className="text-left">
+                        <p className="text-xs font-black text-gray-800 uppercase tracking-widest">Ticket is {selectedTicket.status}</p>
+                        <p className="text-[11px] text-gray-400 mt-1">If your issue is not fully addressed, you may re-open it to continue.</p>
+                      </div>
                       <button
+                        type="button"
+                        disabled={isUpdatingStatus !== null}
                         onClick={async () => {
-                          if (window.confirm('Are you sure you want to close this ticket?')) {
-                            await updateDoc(doc(db, 'support_tickets', selectedTicket.id), { status: 'closed' });
-                            setSelectedTicket({ ...selectedTicket, status: 'closed' });
+                          setIsUpdatingStatus('open');
+                          try {
+                            const newStatus = 'open';
+                            await updateDoc(doc(db, 'support_tickets', selectedTicket.id), { status: newStatus });
+                            setSelectedTicket(prev => ({ ...prev, status: newStatus }));
+                          } catch (error) {
+                            console.error('Error re-opening ticket:', error);
+                            alert('Failed to re-open support ticket.');
+                          } finally {
+                            setIsUpdatingStatus(null);
                           }
                         }}
-                        className="px-6 py-3 bg-white text-red-600 border border-red-100 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-red-50 transition-all flex items-center gap-2"
+                        className="px-5 py-3 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-xl text-xs font-black uppercase tracking-widest transition-all inline-flex items-center gap-2"
                       >
-                        <CheckCircle2 className="w-4 h-4" />
-                        Close Ticket
-                      </button>
-                      <button
-                        onClick={handleUserReply}
-                        disabled={isReplying || !userReply.trim()}
-                        className="px-8 py-3 bg-indigo-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {isReplying ? (
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4" />
-                            Send Reply
-                          </>
-                        )}
+                        {isUpdatingStatus === 'open' ? (
+                          <div className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
+                        ) : null}
+                        Re-open Ticket
                       </button>
                     </div>
-                  </div>
+                  )}
                 </div>
-              ) : (
-                <div className="p-8 border-t border-gray-100 bg-gray-50/50 text-center">
-                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest">This ticket is closed</p>
-                </div>
-              )}
+              </div>
             </motion.div>
           </div>
         )}

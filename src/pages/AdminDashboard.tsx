@@ -35,6 +35,7 @@ export default function AdminDashboard() {
   const [selectedPaymentImage, setSelectedPaymentImage] = useState<string | null>(null);
   const [adminReply, setAdminReply] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalListings: 0,
@@ -1145,10 +1146,14 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {tickets.map(ticket => (
-                    <tr key={ticket.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr 
+                      key={ticket.id} 
+                      onClick={() => setSelectedTicket(ticket)}
+                      className="hover:bg-gray-50/80 transition-colors cursor-pointer group"
+                    >
                       <td className="px-6 py-4">
-                        <div className="text-sm font-bold text-gray-900">{ticket.userName}</div>
-                        <div className="text-[10px] text-gray-400 font-bold">{ticket.email}</div>
+                        <div className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{ticket.userName || 'Anonymous'}</div>
+                        <div className="text-[10px] text-gray-400 font-bold">{ticket.email || 'No email provided'}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-bold text-gray-900">{ticket.subject}</div>
@@ -1162,27 +1167,30 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4">
                         <span className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                          ticket.status === 'open' ? "bg-amber-100 text-amber-600" : "bg-green-100 text-green-600"
+                          ticket.status === 'open' ? "bg-amber-100 text-amber-600" :
+                          ticket.status === 'in-progress' ? "bg-blue-100 text-blue-600" :
+                          ticket.status === 'closed' ? "bg-gray-100 text-gray-600" :
+                          "bg-green-100 text-green-600" // resolved
                         )}>
                           {ticket.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-xs font-bold text-gray-500">
-                        {ticket.createdAt?.toDate().toLocaleDateString()}
+                        {ticket.createdAt?.toDate ? ticket.createdAt.toDate().toLocaleDateString() : 'N/A'}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2">
                           <button 
                             onClick={() => setSelectedTicket(ticket)}
-                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="View Details"
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="View Details & Reply"
                           >
                             <ExternalLink className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleChatWithUser(ticket.userId)}
                             className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Reply via Chat"
+                            title="Reply via Direct Chat"
                           >
                             <MessageSquare className="w-4 h-4" />
                           </button>
@@ -1229,13 +1237,13 @@ export default function AdminDashboard() {
       {/* Ticket Details Modal */}
       <AnimatePresence>
         {selectedTicket && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedTicket(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -1247,18 +1255,15 @@ export default function AdminDashboard() {
               <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                 <div className="flex items-center gap-4">
                   <div className={cn(
-                    "w-3 h-3 rounded-full",
-                    selectedTicket.status === 'open' ? "bg-amber-500" : 
-                    selectedTicket.status === 'in-progress' ? "bg-blue-500" :
-                    "bg-green-500"
+                    "w-3.5 h-3.5 rounded-full ring-4",
+                    selectedTicket.status === 'open' ? "bg-amber-500 ring-amber-100 animate-pulse" : 
+                    selectedTicket.status === 'in-progress' ? "bg-blue-500 ring-blue-100 animate-pulse" :
+                    selectedTicket.status === 'closed' ? "bg-gray-400 ring-gray-100" :
+                    "bg-green-500 ring-green-100"
                   )} />
                   <div>
-                    <h3 className="text-xl font-black text-gray-900">{selectedTicket.subject}</h3>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedTicket.category}</span>
-                      <span className="text-[10px] font-black text-gray-300">•</span>
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ID: {selectedTicket.id}</span>
-                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Ticket Administration</span>
+                    <h3 className="text-lg font-black text-gray-900 leading-tight">Master ID: #{selectedTicket.id.toUpperCase()}</h3>
                   </div>
                 </div>
                 <button 
@@ -1271,63 +1276,126 @@ export default function AdminDashboard() {
 
               {/* Modal Content */}
               <div className="flex-grow overflow-y-auto p-8 space-y-8">
-                {/* User Info */}
-                <div className="flex items-center justify-between p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
+                {/* User Info & Session Card */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between p-6 bg-indigo-50/50 rounded-3xl border border-indigo-100/50 gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 font-black shadow-sm">
-                      {selectedTicket.userName[0]}
+                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 font-black shadow-sm text-lg border border-indigo-100">
+                      {selectedTicket.userName ? selectedTicket.userName[0].toUpperCase() : 'U'}
                     </div>
                     <div>
-                      <div className="text-sm font-black text-gray-900">{selectedTicket.userName}</div>
-                      <div className="text-xs text-indigo-600 font-bold">{selectedTicket.email}</div>
+                      <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest leading-none mb-1">Ticket Submitter</div>
+                      <div className="text-sm font-black text-gray-900">{selectedTicket.userName || 'Anonymous'}</div>
+                      <div className="text-xs text-indigo-700 font-bold">{selectedTicket.email || 'No email associated'}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Submitted On</div>
-                    <div className="text-xs font-bold text-gray-900">{selectedTicket.createdAt?.toDate().toLocaleString()}</div>
+                  <div className="text-left md:text-right border-t md:border-t-0 border-indigo-100 pt-3 md:pt-0">
+                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Date Created</div>
+                    <div className="text-xs font-bold text-gray-900">
+                      {selectedTicket.createdAt?.toDate 
+                        ? selectedTicket.createdAt.toDate().toLocaleString() 
+                        : (selectedTicket.createdAt ? new Date(selectedTicket.createdAt).toLocaleString() : 'N/A')}
+                    </div>
                   </div>
                 </div>
 
-                {/* Original Message */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">User Message</h4>
-                  <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {selectedTicket.message}
+                {/* Structured Ticket Details card */}
+                <div className="bg-gradient-to-br from-indigo-50/30 via-white to-gray-50/30 rounded-3xl p-6 border border-gray-100 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Support Request Card</span>
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-white shadow-sm",
+                      selectedTicket.status === 'open' ? "bg-amber-500" : 
+                      selectedTicket.status === 'in-progress' ? "bg-blue-500" :
+                      selectedTicket.status === 'closed' ? "bg-gray-500" :
+                      "bg-green-600"
+                    )}>
+                      {selectedTicket.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-bold text-gray-500">
+                    <div className="p-3 bg-white/80 rounded-xl border border-gray-100">
+                      <span className="block text-[9px] uppercase font-black text-gray-400 tracking-wider mb-0.5">Category</span>
+                      <span className={cn(
+                        "inline-block px-2.5 py-0.5 rounded text-[10px] uppercase font-black tracking-widest mt-0.5",
+                        selectedTicket.category === 'billing' ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                        selectedTicket.category === 'technical' ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                        selectedTicket.category === 'report' ? "bg-orange-50 text-orange-700 border border-orange-100" :
+                        selectedTicket.category === 'general' ? "bg-indigo-50 text-indigo-700 border border-indigo-100" :
+                        "bg-gray-50 text-gray-700 border border-gray-100"
+                      )}>
+                        {selectedTicket.category === 'billing' ? "💼 Billing & Payments" :
+                         selectedTicket.category === 'technical' ? "⚙️ Technical Issue" :
+                         selectedTicket.category === 'report' ? "⚠️ Report User" :
+                         selectedTicket.category === 'general' ? "ℹ️ General Inquiry" :
+                         `📁 ${selectedTicket.category || 'Other'}`}
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-white/80 rounded-xl border border-gray-100">
+                      <span className="block text-[9px] uppercase font-black text-gray-400 tracking-wider mb-0.5">Urgency Level</span>
+                      <span className="inline-block px-2.5 py-0.5 rounded text-[10px] uppercase font-black tracking-widest mt-0.5 bg-red-50 text-red-700 border border-red-100">
+                        ⚡ {selectedTicket.priority || 'medium'} priority
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-100 shadow-inner">
+                    <span className="block text-[9px] uppercase font-black text-indigo-600 tracking-widest">Subject Of Discussion</span>
+                    <h4 className="text-base font-extrabold text-gray-900 leading-snug">{selectedTicket.subject}</h4>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="block text-[9px] uppercase font-black text-gray-400 tracking-widest ml-1">Original Issue Details</span>
+                    <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 text-sm text-gray-800 leading-relaxed whitespace-pre-wrap relative italic">
+                      <span className="absolute -top-3 left-4 text-4xl text-indigo-200/50 font-serif translate-y-1">“</span>
+                      <p className="relative z-10 pl-2">{selectedTicket.message}</p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Conversation History */}
                 <div className="space-y-6">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Conversation History</h4>
+                  <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                    <MessageSquare className="w-4 h-4 text-indigo-600" />
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Conversation Thread</h4>
+                  </div>
                   {selectedTicket.replies && selectedTicket.replies.length > 0 ? (
-                    selectedTicket.replies.map((reply: any, i: number) => (
-                      <div 
-                        key={i} 
-                        className={cn(
-                          "rounded-3xl p-6 border transition-all",
-                          reply.isAdmin 
-                            ? "bg-indigo-50 border-indigo-100 ml-12" 
-                            : "bg-gray-50 border-gray-100 mr-12"
-                        )}
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <span className={cn(
-                            "text-[10px] font-black uppercase tracking-widest",
-                            reply.isAdmin ? "text-indigo-600" : "text-gray-500"
-                          )}>
-                            {reply.isAdmin ? "Admin (You)" : "User"}
-                          </span>
-                          <span className="text-[10px] font-bold text-gray-400">
-                            {reply.createdAt?.toDate ? reply.createdAt.toDate().toLocaleString() : new Date(reply.createdAt).toLocaleString()}
-                          </span>
+                    <div className="space-y-6">
+                      {selectedTicket.replies.map((reply: any, i: number) => (
+                        <div 
+                          key={i} 
+                          className={cn(
+                            "rounded-3xl p-5 border shadow-sm transition-all relative",
+                            reply.isAdmin 
+                              ? "bg-indigo-50/60 border-indigo-100 ml-12" 
+                              : "bg-gray-50 border-gray-100 mr-12"
+                          )}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={cn(
+                              "text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5",
+                              reply.isAdmin ? "text-indigo-600" : "text-gray-500"
+                            )}>
+                              {reply.isAdmin ? (
+                                <>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                  🛡️ NextFlippers Admin (You)
+                                </>
+                              ) : "User Submitter"}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400">
+                              {reply.createdAt?.toDate ? reply.createdAt.toDate().toLocaleString() : new Date(reply.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{reply.message}</p>
                         </div>
-                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{reply.message}</p>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   ) : (
                     <div className="text-center py-12 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
                       <MessageSquare className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                      <p className="text-sm text-gray-400 font-bold">No replies yet. Start the conversation below.</p>
+                      <p className="text-sm text-gray-400 font-bold">No replies yet. Type a response below to start the conversation.</p>
                     </div>
                   )}
                 </div>
@@ -1344,29 +1412,93 @@ export default function AdminDashboard() {
                     onChange={(e) => setAdminReply(e.target.value)}
                   />
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button
+                        type="button"
+                        disabled={isUpdatingStatus !== null}
                         onClick={async () => {
-                          const newStatus = 'resolved';
-                          await updateDoc(doc(db, 'support_tickets', selectedTicket.id), { status: newStatus });
-                          setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, status: newStatus } : t));
-                          setSelectedTicket(prev => ({ ...prev, status: newStatus }));
+                          setIsUpdatingStatus('resolved');
+                          try {
+                            const newStatus = 'resolved';
+                            await updateDoc(doc(db, 'support_tickets', selectedTicket.id), { status: newStatus });
+                            setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, status: newStatus } : t));
+                            setSelectedTicket(prev => ({ ...prev, status: newStatus }));
+                          } catch (error) {
+                            console.error('Error updating ticket status:', error);
+                            alert('Failed to mark support ticket as resolved.');
+                          } finally {
+                            setIsUpdatingStatus(null);
+                          }
                         }}
-                        className="px-4 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-all"
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-1.5",
+                          selectedTicket.status === 'resolved' 
+                            ? "bg-green-600 text-white cursor-default" 
+                            : "bg-green-50 text-green-600 hover:bg-green-100"
+                        )}
                       >
-                        Mark as Resolved
+                        {isUpdatingStatus === 'resolved' ? (
+                          <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                        ) : null}
+                        {selectedTicket.status === 'resolved' ? "✓ Resolved" : "Mark as Resolved"}
                       </button>
+                      
                       <button
+                        type="button"
+                        disabled={isUpdatingStatus !== null}
                         onClick={async () => {
-                          const newStatus = 'closed';
-                          await updateDoc(doc(db, 'support_tickets', selectedTicket.id), { status: newStatus });
-                          setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, status: newStatus } : t));
-                          setSelectedTicket(prev => ({ ...prev, status: newStatus }));
+                          setIsUpdatingStatus('closed');
+                          try {
+                            const newStatus = 'closed';
+                            await updateDoc(doc(db, 'support_tickets', selectedTicket.id), { status: newStatus });
+                            setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, status: newStatus } : t));
+                            setSelectedTicket(prev => ({ ...prev, status: newStatus }));
+                          } catch (error) {
+                            console.error('Error updating ticket status:', error);
+                            alert('Failed to close support ticket.');
+                          } finally {
+                            setIsUpdatingStatus(null);
+                          }
                         }}
-                        className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all"
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-1.5",
+                          selectedTicket.status === 'closed' 
+                            ? "bg-gray-600 text-white cursor-default" 
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        )}
                       >
-                        Close Ticket
+                        {isUpdatingStatus === 'closed' ? (
+                          <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                        ) : null}
+                        {selectedTicket.status === 'closed' ? "✗ Closed" : "Close Ticket"}
                       </button>
+
+                      {(selectedTicket.status === 'resolved' || selectedTicket.status === 'closed') && (
+                        <button
+                          type="button"
+                          disabled={isUpdatingStatus !== null}
+                          onClick={async () => {
+                            setIsUpdatingStatus('open');
+                            try {
+                              const newStatus = 'open';
+                              await updateDoc(doc(db, 'support_tickets', selectedTicket.id), { status: newStatus });
+                              setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, status: newStatus } : t));
+                              setSelectedTicket(prev => ({ ...prev, status: newStatus }));
+                            } catch (error) {
+                              console.error('Error updating ticket status:', error);
+                              alert('Failed to reopen support ticket.');
+                            } finally {
+                              setIsUpdatingStatus(null);
+                            }
+                          }}
+                          className="px-4 py-2 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-1.5"
+                        >
+                          {isUpdatingStatus === 'open' ? (
+                            <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                          ) : null}
+                          Re-open Ticket
+                        </button>
+                      )}
                     </div>
                     <button
                       onClick={handleAdminReply}

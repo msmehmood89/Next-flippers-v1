@@ -171,6 +171,8 @@ export interface Transaction {
   cancelledAt?: Timestamp;
   workProofImage?: string;
   workProofNotes?: string;
+  isNegotiated?: boolean;
+  originalPrice?: number;
   createdAt: Timestamp;
 }
 

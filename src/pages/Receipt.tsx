@@ -68,7 +68,7 @@ export default function Receipt() {
     const content = `
       Next Flippers Receipt
       Transaction ID: ${transaction.id}
-      Date: ${new Date(transaction.createdAt?.toDate()).toLocaleDateString()}
+      Date: ${new Date(transaction.createdAt?.toDate()).toLocaleString()}
       Item: ${listing?.title || 'Digital Asset'}
       Total Paid: ${formatCurrency(transaction.totalPaid)}
       Status: ${transaction.status}
@@ -117,7 +117,7 @@ export default function Receipt() {
                 Payment Verified
               </div>
               <div className="mt-4 text-indigo-100 text-sm font-medium">
-                Issued on {new Date(transaction.createdAt?.toDate()).toLocaleDateString()}
+                Issued on {new Date(transaction.createdAt?.toDate()).toLocaleString()}
               </div>
             </div>
           </div>
@@ -156,10 +156,6 @@ export default function Receipt() {
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-500 font-medium">Platform Fee (5%)</span>
                     <span className="text-gray-900 font-bold">{formatCurrency(transaction.platformFee || 0)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500 font-medium">Transaction Fee</span>
-                    <span className="text-gray-900 font-bold">{formatCurrency(transaction.transactionFee || 0)}</span>
                   </div>
                   <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                     <span className="text-lg font-black text-gray-900">Total Paid</span>

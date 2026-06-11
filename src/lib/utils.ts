@@ -11,13 +11,14 @@ export function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 
 export function calculateCommission(price: number) {
   const platformFee = price * 0.05;
-  const transactionFee = price * 0.02;
+  const transactionFee = 0;
   return {
     platformFee,
     transactionFee,

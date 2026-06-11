@@ -8,6 +8,7 @@ import { DollarSign, Search, ChevronRight, Clock, CheckCircle2, AlertCircle, Mes
 import { Link, useNavigate } from 'react-router-dom';
 import { formatCurrency, cn, resizeImage, createNotification } from '../../lib/utils';
 import DealStatusBar from '../../components/DealStatusBar';
+import ProfessionalReceiptCard from '../../components/ProfessionalReceiptCard';
 
 export default function MySales() {
   const { user } = useAuth();
@@ -169,6 +170,46 @@ export default function MySales() {
     fetchSales();
   }, [user]);
 
+  const handleConfirmPaymentReceived = async (transId: string) => {
+    try {
+      const transRef = doc(db, 'transactions', transId);
+      const transSnap = await getDoc(transRef);
+      if (!transSnap.exists()) return;
+      const transData = transSnap.data() as Transaction;
+
+      await updateDoc(transRef, {
+        dealStatus: 'completed',
+        status: 'completed',
+        sellerPaid: true,
+        sellerPaidAt: serverTimestamp()
+      });
+
+      // Notify admin
+      await createNotification(
+        'admin',
+        'Seller Confirmed Payment Received! 💰',
+        `Seller ${user?.email || ''} has confirmed receipt of funds for order #${transId.slice(-6).toUpperCase()}. The deal is finalized!`,
+        'payment_completed',
+        '/admin'
+      );
+
+      // Notify buyer
+      await createNotification(
+        transData.buyerId,
+        'Deal Completed! 🤝',
+        `Your transaction with seller for order #${transId.slice(-6).toUpperCase()} is successfully completed!`,
+        'deal_completed',
+        '/dashboard/purchases'
+      );
+
+      alert('Thank you for confirming receipt of funds! The transaction is now officially completed and finalized.');
+      fetchSales();
+    } catch (err) {
+      console.error('Error confirming payment receipt:', err);
+      alert('Failed to submit confirmation.');
+    }
+  };
+
   const handleUploadProof = async (transId: string) => {
     if (!proofImage && !proofNotes) {
       alert('Please upload a screenshot or provide notes.');
@@ -302,12 +343,12 @@ export default function MySales() {
           {sales.map((sale) => (
             <div 
               key={sale.id}
-              className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 hover:border-indigo-100 transition-all group"
+              className="bg-white rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm border border-gray-100 hover:border-indigo-100 transition-all group"
             >
               <div className="flex flex-col lg:flex-row gap-8">
                 {/* Asset Info */}
-                <div className="flex gap-6 flex-grow min-w-0">
-                  <div className="w-20 h-20 bg-gray-100 rounded-2xl overflow-hidden flex-shrink-0">
+                <div className="flex items-start gap-4 sm:gap-6 flex-grow min-w-0">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-2xl overflow-hidden flex-shrink-0">
                     {sale.image ? (
                       <img src={sale.image} alt={sale.title} className="w-full h-full object-cover" />
                     ) : (
@@ -317,8 +358,8 @@ export default function MySales() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-xl font-bold text-gray-900 mb-1 truncate">{sale.title}</h3>
-                    <div className="flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 truncate">{sale.title}</h3>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                       <span>Order #{sale.id.slice(-6).toUpperCase()}</span>
                       <span>•</span>
                       <span className="text-indigo-600">Earnings: {formatCurrency(sale.salePrice)}</span>
@@ -327,8 +368,8 @@ export default function MySales() {
                 </div>
 
                 {/* Status Column */}
-                <div className="flex flex-col sm:flex-row lg:flex-col justify-between lg:justify-center items-start sm:items-center lg:items-end gap-4 min-w-[200px]">
-                  <div className="text-right">
+                <div className="flex flex-col sm:flex-row lg:flex-col justify-between lg:justify-center items-start sm:items-center lg:items-end gap-4 min-w-0 lg:min-w-[200px] w-full lg:w-auto">
+                  <div className="text-left sm:text-right">
                     <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Escrow Status</div>
                     <div className={cn(
                       "px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest inline-flex",
@@ -338,7 +379,7 @@ export default function MySales() {
                     </div>
                   </div>
                   
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Payout Status</div>
                     {sale.sellerPaid || sale.dealStatus === 'completed' ? (
                       <div className="flex items-center gap-1.5 text-green-600 font-bold text-xs">
@@ -392,14 +433,14 @@ export default function MySales() {
                     )}
 
                     {/* Work Proof Section */}
-                {(sale.dealStatus === 'payment_secured' || sale.dealStatus === 'in_escrow') && (
+                {(sale.dealStatus === 'payment_secured' || sale.dealStatus === 'assets_delivering' || sale.dealStatus === 'in_escrow') && (
                   <div className="mt-8 bg-gray-50 rounded-2xl p-6 border border-gray-100">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <Upload className="w-4 h-4 text-indigo-600" />
                         <h4 className="text-xs font-black uppercase tracking-widest text-gray-900">Submit Work Proof</h4>
                       </div>
-                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full uppercase">Buyer has paid admin</span>
+                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full uppercase">Buyer has paid admin • Assets Delivering</span>
                     </div>
                     
                     {uploadingId === sale.id ? (
@@ -499,6 +540,35 @@ export default function MySales() {
                       </a>
                     )}
                     {sale.workProofNotes && <p className="text-xs text-green-800 bg-white p-4 rounded-xl border border-green-100">{sale.workProofNotes}</p>}
+                  </div>
+                )}
+
+                {sale.dealStatus === 'payment_released' && (
+                  <div className="mt-8 bg-gradient-to-br from-indigo-50/50 via-white to-gray-50/50 rounded-3xl p-6 border border-indigo-100/50 shadow-sm space-y-6">
+                    <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
+                      <div className="w-8 h-8 rounded-full bg-indigo-150 flex items-center justify-center text-indigo-600 font-bold text-xs uppercase animate-pulse">📧</div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-indigo-600 leading-none">Official Payout Confirmation Inbox</h4>
+                        <p className="text-[10px] text-gray-400 mt-1">Sent from Administrative Dispatch • Secure Escrow Platform ({new Date().toLocaleString()})</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <p className="text-xs font-semibold text-gray-700">Respected Seller,</p>
+                      <p className="text-xs font-semibold text-gray-700">We are pleased to inform you that your digital asset/service <span className="font-extrabold text-indigo-900">"{sale.title || 'Your Asset'}"</span> has been successfully sold! The buyer's payment has been fully processed and released by our board of administration.</p>
+                      
+                      <ProfessionalReceiptCard transaction={sale} role="seller" />
+
+                      <p className="italic text-gray-400 text-[10px] text-center mt-4">Please inspect your receiving account. Once you verify the funds are secured in your account, kindly tap the receipt confirmation below to formally complete this transaction.</p>
+                    </div>
+
+                    <button
+                      onClick={() => handleConfirmPaymentReceived(sale.id)}
+                      className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-green-100 flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      I Have Received This Payment Safely
+                    </button>
                   </div>
                 )}
 
@@ -602,7 +672,7 @@ export default function MySales() {
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <Clock className="w-4 h-4" />
-                    Sale Date: {new Date(sale.createdAt.toDate()).toLocaleDateString()}
+                    Sale Date & Time: {new Date(sale.createdAt.toDate()).toLocaleString()}
                   </div>
                   
                   <div className="flex flex-wrap items-center gap-4">

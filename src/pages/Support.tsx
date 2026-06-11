@@ -285,7 +285,9 @@ export default function Support() {
                             <div className="flex items-center gap-3 mt-1">
                               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{ticket.category}</span>
                               <span className="text-[10px] font-black text-gray-300">•</span>
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{ticket.createdAt?.toDate().toLocaleDateString()}</span>
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                {ticket.createdAt?.toDate ? ticket.createdAt.toDate().toLocaleString() : new Date(ticket.createdAt).toLocaleString()}
+                              </span>
                             </div>
                           </div>
                         </div>

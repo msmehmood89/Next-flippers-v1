@@ -157,7 +157,7 @@ export interface Transaction {
   totalPaid: number;
   paymentMethod: 'bank' | 'binance' | 'crypto' | 'pending';
   paymentProofImage?: string;
-  dealStatus: 'payment_pending' | 'payment_secured' | 'in_escrow' | 'asset_transferred' | 'buyer_confirmed' | 'completed' | 'disputed' | 'refunded';
+  dealStatus: 'payment_pending' | 'payment_secured' | 'in_escrow' | 'assets_delivering' | 'asset_transferred' | 'buyer_confirmed' | 'payment_released' | 'seller_received' | 'completed' | 'disputed' | 'refunded';
   status: 'pending' | 'completed' | 'processing' | 'failed' | 'disputed' | 'active';
   type?: 'listing' | 'gig';
   sellerPaid?: boolean;
@@ -173,6 +173,19 @@ export interface Transaction {
   workProofNotes?: string;
   isNegotiated?: boolean;
   originalPrice?: number;
+  payoutDetails?: {
+    bankAccount?: string;
+    amount?: number;
+    trxId?: string;
+    screenshot?: string;
+    notes?: string;
+    accountHolderName?: string;
+    accountTitle?: string;
+    paymentRefCode?: string;
+    platformFee?: number;
+    transactionFee?: number;
+    payoutMethod?: string;
+  };
   createdAt: Timestamp;
 }
 

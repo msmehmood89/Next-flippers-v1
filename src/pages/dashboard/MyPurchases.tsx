@@ -9,6 +9,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency, cn, createNotification } from '../../lib/utils';
 import { useCart } from '../../contexts/CartContext';
 import DealStatusBar from '../../components/DealStatusBar';
+import ProfessionalReceiptCard from '../../components/ProfessionalReceiptCard';
 
 export default function MyPurchases() {
   const { user } = useAuth();
@@ -301,42 +302,42 @@ export default function MyPurchases() {
             {transactions.map((tx) => (
               <div key={tx.id} className="divide-y divide-gray-50 bg-white group border-b border-gray-50 last:border-0">
                 <div 
-                  className="p-8 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                  className="p-4 sm:p-8 hover:bg-gray-50/50 transition-colors cursor-pointer"
                   onClick={() => setExpandedId(expandedId === tx.id ? null : tx.id)}
                 >
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-6">
-                      <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                        <ShoppingBag className="w-8 h-8" />
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 min-w-0">
+                    <div className="flex items-start gap-4 md:gap-6 min-w-0 flex-grow">
+                      <div className="w-12 h-12 md:w-16 md:h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shrink-0">
+                        <ShoppingBag className="w-6 h-6 md:w-8 md:h-8" />
                       </div>
-                      <div>
-                        <div className="text-lg font-bold text-gray-900 mb-1">
+                      <div className="min-w-0 flex-grow">
+                        <div className="text-base md:text-lg font-bold text-gray-900 mb-1 truncate">
                           {tx.listing?.title || `Order #${tx.id.slice(-6).toUpperCase()}`}
                         </div>
-                        <div className="text-sm text-gray-500 mb-2">Order ID: {tx.id.slice(-6).toUpperCase()}</div>
-                        <div className="flex items-center gap-3">
-                          <span className={cn("px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5", getStatusColor(tx.status))}>
+                        <div className="text-xs md:text-sm text-gray-500 mb-2">Order ID: {tx.id.slice(-6).toUpperCase()}</div>
+                        <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                          <span className={cn("px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5", getStatusColor(tx.status))}>
                             {getStatusIcon(tx.status)}
                             {getStatusLabel(tx.status)}
                           </span>
-                          <span className="text-xs text-gray-400 font-medium">
-                            {new Date(tx.createdAt?.toDate()).toLocaleDateString()}
+                          <span className="text-[10px] md:text-xs text-gray-400 font-medium">
+                            {new Date(tx.createdAt?.toDate()).toLocaleString()}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between md:justify-end gap-10">
-                      <div className="flex flex-col items-end gap-2">
-                        <div className="text-right">
-                          <div className="text-xl font-bold text-gray-900">{formatCurrency(tx.totalPaid)}</div>
-                          <div className="text-xs text-gray-400 font-medium">Total Paid (incl. fee)</div>
+                    <div className="flex items-center justify-between md:justify-end gap-4 md:gap-10 w-full md:w-auto shrink-0">
+                      <div className="flex flex-col items-start md:items-end gap-1">
+                        <div className="text-left md:text-right">
+                          <div className="text-lg md:text-xl font-bold text-gray-900">{formatCurrency(tx.totalPaid)}</div>
+                          <div className="text-[10px] md:text-xs text-gray-400 font-medium">Total Paid (incl. fee)</div>
                         </div>
                       </div>
                       <div className={cn(
-                        "p-3 rounded-xl transition-all",
+                        "p-2.5 md:p-3 rounded-xl transition-all shrink-0",
                         expandedId === tx.id ? "bg-indigo-600 text-white shadow-lg" : "bg-gray-50 text-gray-400 group-hover:text-indigo-600"
                       )}>
-                        <ChevronDown className={cn("w-6 h-6 transition-transform duration-300", expandedId === tx.id && "rotate-180")} />
+                        <ChevronDown className={cn("w-5 h-5 md:w-6 md:h-6 transition-transform duration-300", expandedId === tx.id && "rotate-180")} />
                       </div>
                     </div>
                   </div>
@@ -356,8 +357,15 @@ export default function MyPurchases() {
                           <DealStatusBar status={tx.dealStatus || 'payment_pending'} role="buyer" />
                         </div>
 
+                        {tx.payoutDetails && (
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Disbursement Receipt</h4>
+                            <ProfessionalReceiptCard transaction={tx} role="buyer" />
+                          </div>
+                        )}
+
                         {/* Work Proof Display */}
-                        {tx.workProofImage && (
+                        {(tx.workProofImage || tx.workProofNotes || tx.dealStatus === 'asset_transferred' || tx.rating) && (
                           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">

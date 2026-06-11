@@ -18,6 +18,7 @@ import {
 import { formatCurrency, cn, createNotification } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import ProfileAvatar from '../components/ProfileAvatar';
+import ProfessionalReceiptCard from '../components/ProfessionalReceiptCard';
 import { emailService } from '../services/emailService';
 
 export default function AdminDashboard() {
@@ -36,6 +37,22 @@ export default function AdminDashboard() {
   const [adminReply, setAdminReply] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+  
+  // Custom states for Admin Funds Release Modal
+  const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
+  const [releasingTransId, setReleasingTransId] = useState<string | null>(null);
+  const [recipientAccount, setRecipientAccount] = useState('');
+  const [disbursedAmount, setDisbursedAmount] = useState('');
+  const [payoutTrxId, setPayoutTrxId] = useState('');
+  const [payoutScreenshot, setPayoutScreenshot] = useState('');
+  const [memoNotes, setMemoNotes] = useState('');
+  const [isSubmittingRelease, setIsSubmittingRelease] = useState(false);
+
+  const [accountHolderName, setAccountHolderName] = useState('');
+  const [accountTitle, setAccountTitle] = useState('EasyPaisa');
+  const [payoutPlatformFee, setPayoutPlatformFee] = useState('');
+  const [payoutTransactionFee, setPayoutTransactionFee] = useState('0');
+
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalListings: 0,
@@ -331,17 +348,45 @@ export default function AdminDashboard() {
     }
   };
 
-  const handlePaySeller = async (id: string) => {
+  const handlePaySeller = async (
+    id: string,
+    payoutDetails?: {
+      bankAccount: string;
+      amount: number;
+      trxId: string;
+      screenshot: string;
+      notes: string;
+      accountHolderName?: string;
+      accountTitle?: string;
+      paymentRefCode?: string;
+      platformFee?: number;
+      transactionFee?: number;
+      payoutMethod?: string;
+    }
+  ) => {
     try {
       const transRef = doc(db, 'transactions', id);
       const transSnap = await getDoc(transRef);
+      if (!transSnap.exists()) return;
       const transData = transSnap.data() as Transaction;
 
+      const details = payoutDetails || {
+        bankAccount: 'Specified payout wallet',
+        amount: transData.salePrice,
+        trxId: `TRX-${Math.floor(100000 + Math.random() * 900000)}`,
+        screenshot: '',
+        notes: 'Dispatched by Administrator',
+        platformFee: transData.salePrice * 0.05,
+        transactionFee: 0,
+        accountHolderName: '',
+        accountTitle: 'EasyPaisa',
+        payoutMethod: 'EasyPaisa'
+      };
+
       const updateData = {
-        sellerPaid: true,
-        sellerPaidAt: serverTimestamp(),
-        dealStatus: 'completed' as const,
-        status: 'completed' as const
+        dealStatus: 'payment_released' as const,
+        payoutDetails: details,
+        paymentReleasedAt: serverTimestamp()
       };
       
       await updateDoc(transRef, updateData);
@@ -349,8 +394,8 @@ export default function AdminDashboard() {
       // Notify Seller
       await createNotification(
         transData.sellerId,
-        'Payment Released! 💵',
-        `Your payment for order #${id.slice(-6).toUpperCase()} has been released to your account.`,
+        'Payout Dispatched! ✉️',
+        `Admin has released your payout of ${formatCurrency(details.amount)} for order #${id.slice(-6).toUpperCase()}. Please check your account and click Received.`,
         'payment_released',
         '/dashboard/sales'
       );
@@ -358,14 +403,13 @@ export default function AdminDashboard() {
       // Notify Buyer
       await createNotification(
         transData.buyerId,
-        'Order Completed! 🎉',
-        `The transaction for order #${id.slice(-6).toUpperCase()} is now fully completed. Thank you for using Next Flippers!`,
-        'order_completed',
+        'Payment Dispatched to Seller! 📢',
+        `The escrow payment of ${formatCurrency(details.amount)} for order #${id.slice(-6).toUpperCase()} has been dispatched to the seller's account.`,
+        'payout_released',
         '/dashboard/purchases'
       );
 
-      setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updateData, sellerPaidAt: Timestamp.now() } as Transaction : t));
-      alert('Seller marked as paid successfully.');
+      setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updateData, paymentReleasedAt: Timestamp.now() } as any : t));
     } catch (error) {
       console.error('Error paying seller:', error);
       alert('Failed to update payout status.');
@@ -480,63 +524,140 @@ export default function AdminDashboard() {
                  </div>
                )}
              </div>
-          </div>
-        )}
+           </div>
+         )}
 
-        {/* Control Panel for this Deal */}
-        <div className="flex flex-wrap items-center justify-between gap-6">
-          <div className="space-y-4 w-full md:w-auto">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Update Pipeline Status</label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: 'payment_secured', label: 'Payment Secured' },
-                { id: 'in_escrow', label: 'Move to Escrow' },
-                { id: 'asset_transferred', label: 'Asset Transferred' },
-                { id: 'buyer_confirmed', label: 'Buyer Confirmed' },
-                { id: 'completed', label: 'Deal Completed' },
-              ].map(step => (
-                <button
-                  key={step.id}
-                  onClick={() => handleUpdateTransactionStatus(trans.id, trans.status, step.id as any)}
-                  className={cn(
-                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-                    trans.dealStatus === step.id 
-                      ? "bg-indigo-600 text-white border-indigo-600 shadow-md" 
-                      : "bg-white text-gray-500 border-gray-100 hover:border-indigo-200"
-                  )}
-                >
-                  {step.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 flex items-center gap-8">
-            <div>
-              <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Seller Payout</div>
-              <div className="text-xl font-black text-gray-900">{formatCurrency(trans.salePrice)}</div>
-            </div>
-            
-            {trans.sellerPaid ? (
-              <div className="flex items-center gap-2 text-green-600 font-bold text-sm bg-white px-4 py-2 rounded-xl shadow-sm border border-green-100">
-                <CheckCircle2 className="w-5 h-5" />
-                Payout Released
+         {/* Control Panel for this Deal */}
+         <div className="flex flex-col gap-6 pt-4 border-t border-gray-50">
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div className="space-y-4 w-full md:w-auto">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Update Pipeline Status</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'payment_secured', label: 'Payment Secured' },
+                  { id: 'assets_delivering', label: 'Assets Delivering' },
+                  { id: 'asset_transferred', label: 'Assets Delivered' },
+                  { id: 'buyer_confirmed', label: 'Buyer Confirmed' },
+                  { id: 'payment_released', label: 'Payment Released' },
+                  { id: 'completed', label: 'Completed' },
+                ].map(step => (
+                  <button
+                    key={step.id}
+                    onClick={() => handleUpdateTransactionStatus(trans.id, trans.status, step.id as any)}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                      trans.dealStatus === step.id 
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-md" 
+                        : "bg-white text-gray-500 border-gray-100 hover:border-indigo-200"
+                    )}
+                  >
+                    {step.label}
+                  </button>
+                ))}
               </div>
-            ) : (
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 flex items-center gap-8">
+              <div>
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Seller Payout</div>
+                <div className="text-xl font-black text-gray-900">{formatCurrency(trans.salePrice)}</div>
+              </div>
+              
+              {trans.dealStatus === 'payment_released' ? (
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-1.5 text-green-600 font-bold text-xs bg-white px-4 py-2 rounded-xl shadow-sm border border-green-100">
+                    <CheckCircle2 className="w-4 h-4 animate-pulse" />
+                    Payout Released (Awaiting Seller)
+                  </div>
+                  {trans.payoutDetails && (
+                    <span className="text-[9px] text-gray-400 font-bold">To: {trans.payoutDetails.bankAccount}</span>
+                  )}
+                </div>
+              ) : trans.dealStatus === 'completed' || trans.sellerPaid ? (
+                <div className="flex items-center gap-1.5 text-green-600 font-bold text-xs bg-white px-4 py-2 rounded-xl shadow-sm border border-green-100">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Deal Finalized
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setReleasingTransId(trans.id);
+                    setRecipientAccount('');
+                    setAccountHolderName('');
+                    setAccountTitle('EasyPaisa');
+                    const calculatedPlatformFee = trans.salePrice * 0.05;
+                    setPayoutPlatformFee(calculatedPlatformFee.toFixed(2));
+                    setPayoutTransactionFee('0');
+                    setDisbursedAmount((trans.salePrice - calculatedPlatformFee).toFixed(2));
+                    setPayoutTrxId(`TRX-${Math.floor(100000 + Math.random() * 900000)}`);
+                    setPayoutScreenshot('');
+                    setMemoNotes(`Official payout for listing/gig #${trans.id.slice(-6).toUpperCase()}`);
+                    setIsReleaseModalOpen(true);
+                  }}
+                  disabled={trans.dealStatus !== 'buyer_confirmed'}
+                  className="px-6 py-2.5 bg-green-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-all shadow-lg shadow-green-100 disabled:opacity-50 flex items-center gap-2"
+                >
+                  <DollarSign className="w-4 h-4" />
+                  Release Funds
+                </button>
+              )}
+            </div>
+          </div>
+
+          {trans.payoutDetails && (
+            <div className="mt-6 flex justify-center">
+              <ProfessionalReceiptCard transaction={trans as any} role="admin" />
+            </div>
+          )}
+
+          {/* Reserve / Refund Option (Separated Alahda) */}
+          {trans.dealStatus !== 'completed' && trans.dealStatus !== 'refunded' && (
+            <div className="mt-2 pt-4 border-t border-dashed border-gray-100 flex items-center justify-between">
+              <div className="text-[10px] text-gray-400 font-bold italic">
+                ⚠️ Need to cancel? Use the reserve administrative tools.
+              </div>
               <button
-                onClick={() => {
-                  if (window.confirm(`Release funds to the seller? Amount: ${formatCurrency(trans.salePrice)}`)) {
-                    handlePaySeller(trans.id);
+                onClick={async () => {
+                  if (window.confirm(`Are you absolutely sure you want to CANCEL deal #${trans.id.slice(-6).toUpperCase()} and REFUND the buyer? This action is irreversible.`)) {
+                    try {
+                      const transRef = doc(db, 'transactions', trans.id);
+                      await updateDoc(transRef, {
+                        dealStatus: 'refunded',
+                        status: 'failed'
+                      });
+
+                      // Notify seller
+                      await createNotification(
+                        trans.sellerId,
+                        'Order Cancelled by Admin 🛑',
+                        `Order #${trans.id.slice(-6).toUpperCase()} has been cancelled and funds refunded by Admin.`,
+                        'order_cancelled',
+                        '/dashboard/sales'
+                      );
+
+                      // Notify buyer
+                      await createNotification(
+                        trans.buyerId,
+                        'Order Refunded Successfully! 💳',
+                        `The admin has processed a refund of ${formatCurrency(trans.totalPaid)} for order #${trans.id.slice(-6).toUpperCase()}.`,
+                        'order_refunded',
+                        '/dashboard/purchases'
+                      );
+
+                      setTransactions(prev => prev.map(t => t.id === trans.id ? { ...t, dealStatus: 'refunded', status: 'failed' } as any : t));
+                      alert("The transaction has been successfully cancelled and refunded.");
+                    } catch (err) {
+                      console.error("Error refunding order:", err);
+                      alert("Failed to refund order.");
+                    }
                   }
                 }}
-                disabled={trans.dealStatus !== 'completed' && trans.dealStatus !== 'buyer_confirmed'}
-                className="px-6 py-2.5 bg-green-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-all shadow-lg shadow-green-100 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all rounded-xl text-[10px] font-black uppercase tracking-wider"
               >
-                <DollarSign className="w-4 h-4" />
-                Release Funds
+                Cancel & Refund Order
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -679,7 +800,7 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <div className="text-sm font-bold text-gray-900">{listing.title}</div>
-                          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Listing ID: {listing.id.slice(-6).toUpperCase()} • {new Date(listing.createdAt?.toDate()).toLocaleDateString()}</div>
+                          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Listing ID: {listing.id.slice(-6).toUpperCase()} • {new Date(listing.createdAt?.toDate()).toLocaleString()}</div>
                         </div>
                       </div>
                       <span className={cn(
@@ -704,7 +825,7 @@ export default function AdminDashboard() {
                     <div key={trans.id} className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
                       <div>
                         <div className="text-sm font-bold text-gray-900">{formatCurrency(trans.totalPaid)}</div>
-                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Order #{trans.id.slice(-6).toUpperCase()} • {new Date(trans.createdAt?.toDate()).toLocaleDateString()}</div>
+                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Order #{trans.id.slice(-6).toUpperCase()} • {new Date(trans.createdAt?.toDate()).toLocaleString()}</div>
                       </div>
                       <button 
                         onClick={() => setActiveTab('payments')}
@@ -1176,7 +1297,7 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-xs font-bold text-gray-500">
-                        {ticket.createdAt?.toDate ? ticket.createdAt.toDate().toLocaleDateString() : 'N/A'}
+                        {ticket.createdAt?.toDate ? ticket.createdAt.toDate().toLocaleString() : 'N/A'}
                       </td>
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2">
@@ -1769,6 +1890,264 @@ export default function AdminDashboard() {
                   Download Original
                 </a>
               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Release Funds Custom Form Modal */}
+        {isReleaseModalOpen && releasingTransId && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!isSubmittingRelease) setIsReleaseModalOpen(false);
+              }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative max-w-lg w-full bg-white rounded-3xl overflow-hidden shadow-2xl border border-gray-100 space-y-6 max-h-[90vh] overflow-y-auto z-10"
+            >
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-green-600">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">Record Payout Details</h3>
+                    <p className="text-[10px] text-gray-400 mt-1">Disburse secure escrow funds to seller's account</p>
+                  </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setIsReleaseModalOpen(false)}
+                  disabled={isSubmittingRelease}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <form 
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!recipientAccount.trim()) {
+                    alert('Please provide the recipient account number, username, or address.');
+                    return;
+                  }
+                  if (!accountHolderName.trim()) {
+                    alert('Please specify the account holder name for security records.');
+                    return;
+                  }
+                  
+                  const activeReleasingTrans = transactions.find(t => t.id === releasingTransId);
+                  const originalPrice = activeReleasingTrans ? activeReleasingTrans.salePrice : 0;
+                  const computedNetPayout = Math.max(0, originalPrice - Number(payoutPlatformFee || 0) - Number(payoutTransactionFee || 0));
+
+                  setIsSubmittingRelease(true);
+                  try {
+                    await handlePaySeller(releasingTransId, {
+                      bankAccount: recipientAccount,
+                      amount: computedNetPayout,
+                      trxId: payoutTrxId || 'TRX-DIRECT',
+                      screenshot: payoutScreenshot,
+                      notes: memoNotes || 'Dispatched successfully',
+                      accountHolderName: accountHolderName,
+                      accountTitle: accountTitle,
+                      paymentRefCode: payoutTrxId,
+                      platformFee: parseFloat(payoutPlatformFee || '0'),
+                      transactionFee: parseFloat(payoutTransactionFee || '0'),
+                      payoutMethod: accountTitle
+                    });
+                    setIsReleaseModalOpen(false);
+                    setReleasingTransId(null);
+                  } catch (err) {
+                    console.error('Error submitting payout details:', err);
+                    alert('Failed to save payout details.');
+                  } finally {
+                    setIsSubmittingRelease(false);
+                  }
+                }}
+                className="p-6 space-y-4"
+              >
+                {/* Method / Title Choice */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Payout Method / Gateway *</label>
+                    <select
+                      value={accountTitle}
+                      onChange={(e) => setAccountTitle(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                      <option value="EasyPaisa">EasyPaisa</option>
+                      <option value="JazzCash">JazzCash</option>
+                      <option value="Binance Pay">Binance Pay</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="PayPal">PayPal</option>
+                      <option value="Payoneer">Payoneer</option>
+                      <option value="Other Method">Other Method</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Account Holder Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Full Name on Account"
+                      value={accountHolderName}
+                      onChange={(e) => setAccountHolderName(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Account Number / IBAN / Wallet Address *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 03XXXXXXXX, PKXXUNILXXXXX, or Wallet ID"
+                    value={recipientAccount}
+                    onChange={(e) => setRecipientAccount(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                {/* Fees calculation dashboard */}
+                <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 space-y-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-indigo-600 block mb-1">Financial Reconciliation</span>
+                  
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Base Value:</span>
+                    <span className="font-bold">
+                      {formatCurrency(transactions.find(t => t.id === releasingTransId)?.salePrice || 0)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                        Platform Fee (5%)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="Platform Fee"
+                        value={payoutPlatformFee}
+                        onChange={(e) => setPayoutPlatformFee(e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                        Transaction Fee (Optional)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="Tx Fee"
+                        value={payoutTransactionFee}
+                        onChange={(e) => setPayoutTransactionFee(e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs text-indigo-950 font-black pt-2 border-t border-dashed border-indigo-200/50 bg-indigo-50/30 p-2 rounded-xl">
+                    <span className="uppercase tracking-widest text-[10px]">Net Disbursed to Seller:</span>
+                    <span className="text-sm text-indigo-600 font-extrabold">
+                      {formatCurrency(
+                        Math.max(0, 
+                          (transactions.find(t => t.id === releasingTransId)?.salePrice || 0) 
+                          - Number(payoutPlatformFee || 0) 
+                          - Number(payoutTransactionFee || 0)
+                        )
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Payment Reference Code / Trx ID *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Bank Trx ID, EasyPaisa reference code, Binance TxID"
+                    value={payoutTrxId}
+                    onChange={(e) => setPayoutTrxId(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-mono font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Official Transfer Screenshot / Proof</label>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="screenshot-payout-file"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.readAsDataURL(file);
+                          reader.onloadend = () => {
+                            setPayoutScreenshot(reader.result as string);
+                          };
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="screenshot-payout-file"
+                      className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-indigo-100 transition-all border border-dashed border-indigo-200"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      {payoutScreenshot ? 'Change Receipt' : 'Upload Receipt Asset'}
+                    </label>
+                    {payoutScreenshot && (
+                      <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-200">
+                        <img src={payoutScreenshot} alt="payout receipt preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Dispatch Memo / Admin Notes</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Enter any private notes, status remarks, bank name or transfer logs..."
+                    value={memoNotes}
+                    onChange={(e) => setMemoNotes(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-gray-100">
+                  <button
+                    type="button"
+                    disabled={isSubmittingRelease}
+                    onClick={() => setIsReleaseModalOpen(false)}
+                    className="flex-1 py-3 bg-white border border-gray-200 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingRelease}
+                    className="flex-1 py-3 bg-green-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSubmittingRelease ? 'Recording Transfer...' : 'Record Payout Details'}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

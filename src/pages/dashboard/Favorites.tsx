@@ -23,11 +23,12 @@ export default function Favorites() {
 
       setLoading(true);
       try {
+        const uniqueFavorites = Array.from(new Set(profile.favorites));
         const fetchedItems: (Listing | Gig)[] = [];
         
         // We need to fetch each item individually or in chunks because they could be in different collections
         // For simplicity and because favorites are usually few, we'll fetch them individually
-        const promises = profile.favorites.map(async (id) => {
+        const promises = uniqueFavorites.map(async (id) => {
           // Try listings first
           const listingDoc = await getDoc(doc(db, 'listings', id));
           if (listingDoc.exists()) {

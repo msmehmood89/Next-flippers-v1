@@ -101,7 +101,7 @@ export default function Dashboard() {
           </aside>
 
           {/* Main Content Area */}
-          <main className="flex-grow min-h-[600px]">
+          <main className="flex-grow w-full min-w-0 min-h-[600px]">
             <Routes>
               <Route index element={<DashboardHome />} />
               <Route path="listings" element={<MyListings />} />

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import PhoneInput from 'react-phone-input-2';
 import ProfileAvatar from '../../components/ProfileAvatar';
-import { cn } from '../../lib/utils';
+import { cn, resizeImage } from '../../lib/utils';
 
 export default function UserSettings() {
   const { profile, user } = useAuth();
@@ -128,29 +128,8 @@ export default function UserSettings() {
 
     setUploading(true);
     try {
-      let finalPhotoURL = '';
-      try {
-        // Attempt standard Firebase Storage upload first with a strict 3-second timeout limit
-        const storageRef = ref(storage, `profiles/${user.uid}/${Date.now()}_${file.name}`);
-        const uploadResult = await timeoutPromise(
-          uploadBytes(storageRef, file),
-          3000,
-          'Firebase Storage upload timed out'
-        );
-        finalPhotoURL = await timeoutPromise(
-          getDownloadURL(uploadResult.ref),
-          2000,
-          'Firebase Storage getDownloadURL timed out'
-        );
-      } catch (storageError) {
-        console.warn(
-          'Firebase Storage is not fully configured, provisioned, or accessible on this environment. ' +
-          'Automatically falling back to a highly compatible and lightweight client-side optimized base64 image...', 
-          storageError
-        );
-        // Direct crashproof local base64 bypass
-        finalPhotoURL = await compressAndGetBase64(file);
-      }
+      // Direct high-efficiency local base64 compression bypass (instant and fully reliable across sandboxes)
+      const finalPhotoURL = await resizeImage(file, 200, 200, 0.85);
 
       await updateDoc(doc(db, 'users', user.uid), {
         photoURL: finalPhotoURL
@@ -366,6 +345,7 @@ export default function UserSettings() {
                           });
                         }}
                         inputClass="!w-full !pl-14 !pr-5 !py-4 !bg-gray-50 !border-gray-100 !rounded-2xl focus:!ring-2 focus:!ring-indigo-500 focus:!bg-white !transition-all !outline-none !h-auto !font-bold"
+                        inputStyle={{ paddingLeft: '56px' }}
                         buttonClass="!bg-transparent !border-none !left-2"
                         containerClass="!w-full"
                       />

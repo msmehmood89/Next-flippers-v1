@@ -246,6 +246,7 @@ export default function SetupUsername() {
                     });
                   }}
                   inputClass="!w-full !pl-12 !pr-4 !py-7 !bg-gray-50 !border !border-gray-100 !rounded-2xl focus:!ring-4 focus:!ring-indigo-500/10 focus:!bg-white !transition-all !outline-none !h-auto !font-bold"
+                  inputStyle={{ paddingLeft: '56px' }}
                   buttonClass="!bg-transparent !border-none !left-2"
                   containerClass="!w-full"
                 />

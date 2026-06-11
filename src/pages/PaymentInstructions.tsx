@@ -485,10 +485,6 @@ export default function PaymentInstructions() {
                   <span>Platform Fee (5%)</span>
                   <span>{formatCurrency(platformFee)}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm text-gray-500">
-                  <span>Transaction Fee</span>
-                  <span>{formatCurrency(transactionFee)}</span>
-                </div>
                 <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                   <span className="text-lg font-bold text-gray-900">Total to Pay</span>
                   <span className="text-3xl font-bold text-indigo-600">

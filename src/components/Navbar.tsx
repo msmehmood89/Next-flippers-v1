@@ -73,7 +73,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16 md:h-20 transition-all duration-300">
           {/* Logo */}
           <Link to="/" className="hover:opacity-90 transition-opacity flex-shrink-0">
-            <Logo size="md" />
+            <Logo size="md" imgClassName="w-[300px] h-[200px]" />
           </Link>
 
           {/* Desktop Nav */}

@@ -289,6 +289,7 @@ export default function Register() {
                     });
                   }}
                   inputClass="!w-full !pl-12 !pr-4 !py-6 !bg-gray-50 !border !border-gray-200 !rounded-xl focus:!ring-2 focus:!ring-indigo-500 focus:!bg-white !transition-all !outline-none !h-auto"
+                  inputStyle={{ paddingLeft: '56px' }}
                   buttonClass="!bg-transparent !border-none !left-2"
                   containerClass="!w-full"
                 />

@@ -37,7 +37,7 @@ export default function FreelanceMarketplace() {
   useEffect(() => {
     let q = query(
       collection(db, 'gigs'),
-      where('status', '==', 'active'),
+      where('status', 'in', ['active', 'sold']),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
@@ -45,7 +45,7 @@ export default function FreelanceMarketplace() {
     if (selectedCategory !== 'All Services') {
       q = query(
         collection(db, 'gigs'),
-        where('status', '==', 'active'),
+        where('status', 'in', ['active', 'sold']),
         where('category', '==', selectedCategory),
         orderBy('createdAt', 'desc'),
         limit(50)
@@ -53,7 +53,20 @@ export default function FreelanceMarketplace() {
     }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const gigsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Gig));
+      let gigsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Gig));
+      
+      // Client-side filtration for 24-hour sold gigs
+      gigsData = gigsData.filter(g => {
+        if (g.status === 'sold') {
+          const sAt = g.soldAt as any;
+          if (!sAt) return true;
+          const soldTime = sAt.toDate ? sAt.toDate().getTime() : new Date(sAt).getTime();
+          const ageMs = Date.now() - soldTime;
+          return ageMs <= 24 * 60 * 60 * 1000;
+        }
+        return true;
+      });
+
       setGigs(gigsData);
       setLoading(false);
     }, (error) => {
@@ -181,6 +194,24 @@ export default function FreelanceMarketplace() {
                 >
                   {/* Image */}
                   <div className="relative aspect-[4/3] overflow-hidden">
+                    {gig.status === 'sold' && (
+                      <div className="absolute inset-0 bg-rose-600/90 backdrop-blur-sm z-[20] flex flex-col items-center justify-center text-white p-4">
+                        <span className="text-3xl font-extrabold uppercase tracking-wider border-2 border-white px-4 py-1.5 rotate-[-5deg] shadow-lg animate-pulse">SOLD</span>
+                        {gig.soldAt && (
+                          <span className="text-white/90 text-[10px] uppercase font-bold tracking-widest mt-2">
+                            Hides in {(() => {
+                              const sAt = gig.soldAt as any;
+                              const soldTime = sAt.toDate ? sAt.toDate().getTime() : new Date(sAt).getTime();
+                              const expiryTime = soldTime + 24 * 60 * 60 * 1000;
+                              const remainingMs = expiryTime - Date.now();
+                              if (remainingMs <= 0) return '0 hrs';
+                              const remainingHrs = Math.ceil(remainingMs / (60 * 60 * 1000));
+                              return `${remainingHrs} ${remainingHrs === 1 ? 'hour' : 'hours'}`;
+                            })()}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <img
                       src={gig.images[0] || `https://picsum.photos/seed/${gig.id}/800/600`}
                       alt={gig.title}

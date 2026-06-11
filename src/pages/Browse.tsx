@@ -39,7 +39,7 @@ export default function Browse() {
       try {
         let q = query(
           collection(db, 'listings'),
-          where('status', '==', 'approved')
+          where('status', 'in', ['approved', 'sold'])
         );
 
         if (sortBy === 'newest') q = query(q, orderBy('createdAt', 'desc'));
@@ -48,6 +48,18 @@ export default function Browse() {
 
         const snapshot = await getDocs(q);
         let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Listing));
+
+        // Filter out sold items that are older than 24 hours
+        results = results.filter(l => {
+          if (l.status === 'sold') {
+            const sAt = l.soldAt as any;
+            if (!sAt) return true; // keep if soldTime is missing
+            const soldTime = sAt.toDate ? sAt.toDate().getTime() : new Date(sAt).getTime();
+            const ageMs = Date.now() - soldTime;
+            return ageMs <= 24 * 60 * 60 * 1000; // keep if sold within last 24 hours
+          }
+          return true; // keep approved ones
+        });
 
         // Client-side filtering for complex queries
         if (search) {
@@ -391,6 +403,24 @@ export default function Browse() {
                       "relative overflow-hidden bg-gray-100 block",
                       viewMode === 'grid' ? "aspect-[4/3]" : "w-full md:w-80 aspect-[4/3] md:aspect-square"
                     )}>
+                      {listing.status === 'sold' && (
+                        <div className="absolute inset-0 bg-rose-600/90 backdrop-blur-sm z-[20] flex flex-col items-center justify-center text-white p-4">
+                          <span className="text-4xl font-extrabold uppercase tracking-wider border-4 border-white px-6 py-2 rotate-[-5deg] shadow-2xl animate-pulse">SOLD</span>
+                          {listing.soldAt && (
+                            <span className="text-white/90 text-[10px] uppercase font-bold tracking-widest mt-3">
+                              Hides in {(() => {
+                                const sAt = listing.soldAt as any;
+                                const soldTime = sAt.toDate ? sAt.toDate().getTime() : new Date(sAt).getTime();
+                                const expiryTime = soldTime + 24 * 60 * 60 * 1000;
+                                const remainingMs = expiryTime - Date.now();
+                                if (remainingMs <= 0) return '0 hrs';
+                                const remainingHrs = Math.ceil(remainingMs / (60 * 60 * 1000));
+                                return `${remainingHrs} ${remainingHrs === 1 ? 'hour' : 'hours'}`;
+                              })()}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <img
                         src={listing.images[0] || `https://picsum.photos/seed/${listing.id}/800/600`}
                         alt={listing.title}

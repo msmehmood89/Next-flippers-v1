@@ -535,42 +535,66 @@ export default function ListingDetails() {
                   <Heart className={cn("w-6 h-6", isFavorite && "fill-current")} />
                   {isFavorite ? 'In Favorites' : 'Add to Favorites'}
                 </button>
-                <button
-                  onClick={() => {
-                    if (!listing) return;
-                    addToCart({
-                      id: listing.id,
-                      type: 'listing',
-                      title: listing.title,
-                      price: listing.askingPrice,
-                      image: listing.images[0] || `https://picsum.photos/seed/${listing.id}/400/300`,
-                      sellerId: listing.userId
-                    });
-                  }}
-                  disabled={isInCart(listing.id)}
-                  className={cn(
-                    "w-full py-5 rounded-[1.5rem] font-black text-lg transition-all shadow-lg flex items-center justify-center gap-3",
-                    isInCart(listing.id)
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-100"
-                  )}
-                >
-                  <ShoppingCart className="w-6 h-6" />
-                  {isInCart(listing.id) ? 'Added to Cart' : 'Add to Cart'}
-                </button>
-                <Link
-                  to={`/payment/${listing.id}`}
-                  className="w-full bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-3"
-                >
-                  <DollarSign className="w-6 h-6" />
-                  {(listing.type === 'website' || !listing.type) ? 'Buy This Website' : 
-                   listing.type === 'youtube' ? 'Buy This Channel' : 
-                   (listing.type === 'tiktok' || listing.type === 'instagram' || listing.type === 'facebook' || listing.type === 'twitter' || listing.type === 'threads') ? 'Buy This Account' : 
-                   listing.type === 'theme_plugin' ? 'Buy This Code' :
-                   listing.type === 'mobile_app' ? 'Buy This App' :
-                   listing.type === 'games' ? 'Buy This Game' :
-                   listing.type === 'other_service' ? 'Buy This Service' : 'Buy This Tool'}
-                </Link>
+                {listing.status === 'sold' ? (
+                  <div className="space-y-2">
+                    <div className="w-full bg-rose-100 text-rose-700 py-5 rounded-[1.5rem] font-black text-lg flex items-center justify-center gap-3 border-2 border-rose-250">
+                      <AlertCircle className="w-6 h-6 text-rose-600 animate-pulse" />
+                      <span>SOLD & COMMITTED</span>
+                    </div>
+                    {listing.soldAt && (
+                      <p className="text-gray-400 text-xs text-center font-bold uppercase tracking-widest mt-1">
+                        Will disappear in {(() => {
+                          const sAt = listing.soldAt as any;
+                          const soldTime = sAt.toDate ? sAt.toDate().getTime() : new Date(sAt).getTime();
+                          const expiryTime = soldTime + 24 * 60 * 60 * 1000;
+                          const remainingMs = expiryTime - Date.now();
+                          if (remainingMs <= 0) return '0 hrs';
+                          const remainingHrs = Math.ceil(remainingMs / (60 * 60 * 1000));
+                          return `${remainingHrs} ${remainingHrs === 1 ? 'hour' : 'hours'}`;
+                        })()}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        if (!listing) return;
+                        addToCart({
+                          id: listing.id,
+                          type: 'listing',
+                          title: listing.title,
+                          price: listing.askingPrice,
+                          image: listing.images[0] || `https://picsum.photos/seed/${listing.id}/400/300`,
+                          sellerId: listing.userId
+                        });
+                      }}
+                      disabled={isInCart(listing.id)}
+                      className={cn(
+                        "w-full py-5 rounded-[1.5rem] font-black text-lg transition-all shadow-lg flex items-center justify-center gap-3",
+                        isInCart(listing.id)
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-100"
+                      )}
+                    >
+                      <ShoppingCart className="w-6 h-6" />
+                      {isInCart(listing.id) ? 'Added to Cart' : 'Add to Cart'}
+                    </button>
+                    <Link
+                      to={`/payment/${listing.id}`}
+                      className="w-full bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-3"
+                    >
+                      <DollarSign className="w-6 h-6" />
+                      {(listing.type === 'website' || !listing.type) ? 'Buy This Website' : 
+                       listing.type === 'youtube' ? 'Buy This Channel' : 
+                       (listing.type === 'tiktok' || listing.type === 'instagram' || listing.type === 'facebook' || listing.type === 'twitter' || listing.type === 'threads') ? 'Buy This Account' : 
+                       listing.type === 'theme_plugin' ? 'Buy This Code' :
+                       listing.type === 'mobile_app' ? 'Buy This App' :
+                       listing.type === 'games' ? 'Buy This Game' :
+                       listing.type === 'other_service' ? 'Buy This Service' : 'Buy This Tool'}
+                    </Link>
+                  </>
+                )}
                 <button
                   onClick={handleContactSeller}
                   disabled={isContacting}

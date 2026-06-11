@@ -128,7 +128,13 @@ export default function MyListings() {
                         </div>
                         <div>
                           <div className="font-bold text-gray-900 line-clamp-1">{listing.title}</div>
-                          <div className="text-xs text-gray-400 font-medium">{listing.url}</div>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <span className="text-xs text-gray-400 font-medium">{listing.url}</span>
+                            <span className="text-[9px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-extrabold uppercase tracking-widest">
+                              {listing.salesType === 'single' ? 'Single sale' :
+                               listing.salesType === 'limited' ? `Qty: ${listing.quantity} left` : 'Unlimited'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </td>

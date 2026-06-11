@@ -100,6 +100,8 @@ export default function CreateListing() {
     askingPrice: 0,
     includedAssets: [] as string[],
     images: [] as string[],
+    salesType: 'single' as 'single' | 'limited' | 'unlimited',
+    quantity: 1,
   });
 
   useEffect(() => {
@@ -138,6 +140,8 @@ export default function CreateListing() {
                 askingPrice: data.askingPrice,
                 includedAssets: data.includedAssets,
                 images: data.images,
+                salesType: data.salesType || 'single',
+                quantity: data.quantity || 1,
               });
           }
         } catch (error) {
@@ -645,6 +649,66 @@ export default function CreateListing() {
                 />
               </div>
               <p className="mt-2 text-xs text-gray-400">Set a realistic price based on your revenue and assets.</p>
+            </div>
+
+            <div className="md:col-span-2 border-t border-gray-100 pt-6 mt-4">
+              <label className="block text-sm font-bold text-gray-700 mb-2">Sales Type (Flipping / Stock Mode)</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, salesType: 'single', quantity: 1 })}
+                  className={cn(
+                    "p-4 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1",
+                    formData.salesType === 'single'
+                      ? "border-indigo-600 bg-indigo-50/50 text-indigo-950"
+                      : "border-gray-100 hover:border-gray-200 text-gray-600"
+                  )}
+                >
+                  <span className="text-sm font-bold block">Sell Once (Unique asset)</span>
+                  <span className="text-xs text-gray-400">Perfect for unique websites / channels. Shows "SOLD" after purchase.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, salesType: 'limited' })}
+                  className={cn(
+                    "p-4 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1",
+                    formData.salesType === 'limited'
+                      ? "border-indigo-600 bg-indigo-50/50 text-indigo-950"
+                      : "border-gray-100 hover:border-gray-200 text-gray-600"
+                  )}
+                >
+                  <span className="text-sm font-bold block">Limited Stock</span>
+                  <span className="text-xs text-gray-400">Can be sold a specific number of times. Decreases on purchases.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, salesType: 'unlimited', quantity: 999999 })}
+                  className={cn(
+                    "p-4 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1",
+                    formData.salesType === 'unlimited'
+                      ? "border-indigo-600 bg-indigo-50/50 text-indigo-950"
+                      : "border-gray-100 hover:border-gray-200 text-gray-600"
+                  )}
+                >
+                  <span className="text-sm font-bold block">Unlimited Sales</span>
+                  <span className="text-xs text-gray-400">Can be sold unlimited times (such as reusable licenses or software).</span>
+                </button>
+              </div>
+
+              {formData.salesType === 'limited' && (
+                <div className="mt-4 animate-fadeIn">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Available Quantity (Stock)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+                    placeholder="Enter available quantity (e.g. 5)"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: Math.max(1, Number(e.target.value)) })}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

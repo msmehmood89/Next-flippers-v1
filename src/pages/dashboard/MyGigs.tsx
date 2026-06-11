@@ -75,12 +75,16 @@ export default function MyGigs() {
                   alt={gig.title}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                 />
-                <div className="absolute top-4 left-4">
+                <div className="absolute top-4 left-4 flex flex-col gap-1.5 items-start">
                   <span className={cn(
                     "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm",
-                    gig.status === 'active' ? "bg-green-500 text-white" : "bg-amber-500 text-white"
+                    gig.status === 'active' ? "bg-green-500 text-white" : gig.status === 'sold' ? "bg-rose-500 text-white" : "bg-amber-500 text-white"
                   )}>
                     {gig.status}
+                  </span>
+                  <span className="px-3 py-1 bg-black/70 backdrop-blur-md rounded-full text-[9px] font-extrabold text-white uppercase tracking-widest shadow-sm">
+                    {gig.salesType === 'single' ? 'Single sale shadow' :
+                     gig.salesType === 'limited' ? `Qty: ${gig.quantity} left` : 'Unlimited'}
                   </span>
                 </div>
               </div>

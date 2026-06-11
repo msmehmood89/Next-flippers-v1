@@ -94,6 +94,9 @@ export interface Listing {
   views: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  salesType?: 'single' | 'limited' | 'unlimited';
+  quantity?: number;
+  soldAt?: Timestamp | null;
 }
 
 export interface Category {
@@ -211,10 +214,13 @@ export interface Gig {
   price: number;
   deliveryTime: string;
   images: string[];
-  status: 'pending' | 'approved' | 'rejected' | 'active' | 'paused' | 'changes_required';
+  status: 'pending' | 'approved' | 'rejected' | 'active' | 'paused' | 'changes_required' | 'sold';
   adminFeedback?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  salesType?: 'single' | 'limited' | 'unlimited';
+  quantity?: number;
+  soldAt?: Timestamp | null;
 }
 
 export interface CommunityMessage {

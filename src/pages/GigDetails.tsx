@@ -398,36 +398,60 @@ export default function GigDetails() {
                   <Heart className={cn("w-6 h-6", isFavorite && "fill-current")} />
                   {isFavorite ? 'In Favorites' : 'Add to Favorites'}
                 </button>
-                <button
-                  onClick={() => {
-                    if (!gig) return;
-                    addToCart({
-                      id: gig.id,
-                      type: 'gig',
-                      title: gig.title,
-                      price: gig.price,
-                      image: gig.images[0] || `https://picsum.photos/seed/${gig.id}/400/300`,
-                      sellerId: gig.userId
-                    });
-                  }}
-                  disabled={isInCart(gig.id)}
-                  className={cn(
-                    "w-full py-5 rounded-2xl font-black text-lg transition-all shadow-xl flex items-center justify-center gap-3",
-                    isInCart(gig.id)
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-100"
-                  )}
-                >
-                  <ShoppingCart className="w-6 h-6" />
-                  {isInCart(gig.id) ? 'Added to Cart' : 'Add to Cart'}
-                </button>
-                <button
-                  onClick={() => navigate(`/payment/gig/${id}`)}
-                  className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-lg hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-3"
-                >
-                  <Zap className="w-6 h-6" />
-                  Order Now
-                </button>
+                {gig.status === 'sold' ? (
+                  <div className="space-y-2">
+                    <div className="w-full bg-rose-100 text-rose-700 py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-3 border-2 border-rose-250">
+                      <AlertCircle className="w-6 h-6 text-rose-600 animate-pulse" />
+                      <span>GIG SOLD OUT</span>
+                    </div>
+                    {gig.soldAt && (
+                      <p className="text-gray-400 text-xs text-center font-bold uppercase tracking-widest mt-1">
+                        Will disappear in {(() => {
+                          const sAt = gig.soldAt as any;
+                          const soldTime = sAt.toDate ? sAt.toDate().getTime() : new Date(sAt).getTime();
+                          const expiryTime = soldTime + 24 * 60 * 60 * 1000;
+                          const remainingMs = expiryTime - Date.now();
+                          if (remainingMs <= 0) return '0 hrs';
+                          const remainingHrs = Math.ceil(remainingMs / (60 * 60 * 1000));
+                          return `${remainingHrs} ${remainingHrs === 1 ? 'hour' : 'hours'}`;
+                        })()}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        if (!gig) return;
+                        addToCart({
+                          id: gig.id,
+                          type: 'gig',
+                          title: gig.title,
+                          price: gig.price,
+                          image: gig.images[0] || `https://picsum.photos/seed/${gig.id}/400/300`,
+                          sellerId: gig.userId
+                        });
+                      }}
+                      disabled={isInCart(gig.id)}
+                      className={cn(
+                        "w-full py-5 rounded-2xl font-black text-lg transition-all shadow-xl flex items-center justify-center gap-3",
+                        isInCart(gig.id)
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-100"
+                      )}
+                    >
+                      <ShoppingCart className="w-6 h-6" />
+                      {isInCart(gig.id) ? 'Added to Cart' : 'Add to Cart'}
+                    </button>
+                    <button
+                      onClick={() => navigate(`/payment/gig/${id}`)}
+                      className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-lg hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-3"
+                    >
+                      <Zap className="w-6 h-6" />
+                      Order Now
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={handleContactSeller}
                   className="w-full bg-white text-indigo-600 py-5 rounded-2xl font-black text-lg border-2 border-indigo-600 hover:bg-indigo-50 transition-all flex items-center justify-center gap-3"

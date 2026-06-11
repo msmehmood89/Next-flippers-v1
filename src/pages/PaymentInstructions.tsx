@@ -250,6 +250,34 @@ export default function PaymentInstructions() {
           const txDoc = await addDoc(collection(db, 'transactions'), transactionData);
           newTxIds.push(txDoc.id);
 
+          // Update inventory stock / status
+          try {
+            const collectionName = item.type === 'listing' ? 'listings' : 'gigs';
+            const salesType = item.salesType || (item.type === 'listing' ? 'single' : 'unlimited');
+            const currentQty = item.quantity !== undefined ? item.quantity : (salesType === 'single' ? 1 : 999999);
+
+            if (salesType === 'single') {
+              await updateDoc(doc(db, collectionName, item.id), {
+                status: 'sold',
+                soldAt: serverTimestamp()
+              });
+            } else if (salesType === 'limited') {
+              if (currentQty <= 1) {
+                await updateDoc(doc(db, collectionName, item.id), {
+                  quantity: increment(-1),
+                  status: 'sold',
+                  soldAt: serverTimestamp()
+                });
+              } else {
+                await updateDoc(doc(db, collectionName, item.id), {
+                  quantity: increment(-1)
+                });
+              }
+            }
+          } catch (updateErr) {
+            console.error('Error updating stock/status for cart item:', updateErr);
+          }
+
           // Notify Seller
           createNotification(
             item.userId || item.sellerId,
@@ -302,6 +330,56 @@ export default function PaymentInstructions() {
         };
 
         const txDoc = await addDoc(collection(db, 'transactions'), transactionData);
+
+        // Update single listing / gig stock or status
+        try {
+          if (listing) {
+            const salesType = listing.salesType || 'single';
+            const currentQty = listing.quantity !== undefined ? listing.quantity : (salesType === 'single' ? 1 : 999999);
+            if (salesType === 'single') {
+              await updateDoc(doc(db, 'listings', listing.id), {
+                status: 'sold',
+                soldAt: serverTimestamp()
+              });
+            } else if (salesType === 'limited') {
+              if (currentQty <= 1) {
+                await updateDoc(doc(db, 'listings', listing.id), {
+                  quantity: increment(-1),
+                  status: 'sold',
+                  soldAt: serverTimestamp()
+                });
+              } else {
+                await updateDoc(doc(db, 'listings', listing.id), {
+                  quantity: increment(-1)
+                });
+              }
+            }
+          } else if (gig) {
+            const salesType = gig.salesType || 'unlimited';
+            const currentQty = gig.quantity !== undefined ? gig.quantity : (salesType === 'single' ? 1 : 999999);
+            if (salesType === 'single') {
+              await updateDoc(doc(db, 'gigs', gig.id), {
+                status: 'sold',
+                soldAt: serverTimestamp()
+              });
+            } else if (salesType === 'limited') {
+              if (currentQty <= 1) {
+                await updateDoc(doc(db, 'gigs', gig.id), {
+                  quantity: increment(-1),
+                  status: 'sold',
+                  soldAt: serverTimestamp()
+                });
+              } else {
+                await updateDoc(doc(db, 'gigs', gig.id), {
+                  quantity: increment(-1)
+                });
+              }
+            }
+          }
+        } catch (updateErr) {
+          console.error('Error updating stock/status for single checkout:', updateErr);
+        }
+
         clearCart();
 
         // Notify Admin

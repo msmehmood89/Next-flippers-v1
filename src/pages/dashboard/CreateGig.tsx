@@ -42,6 +42,8 @@ export default function CreateGig() {
     price: 0,
     deliveryTime: '3 Days',
     images: [] as string[],
+    salesType: 'unlimited' as 'single' | 'limited' | 'unlimited',
+    quantity: 1,
   });
 
   useEffect(() => {
@@ -62,6 +64,8 @@ export default function CreateGig() {
               price: data.price,
               deliveryTime: data.deliveryTime,
               images: data.images,
+              salesType: data.salesType || 'unlimited',
+              quantity: data.quantity || 1,
             });
           }
         } catch (error) {
@@ -199,6 +203,66 @@ export default function CreateGig() {
                   onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                 />
               </div>
+            </div>
+
+            <div className="md:col-span-2 border-t border-gray-100 pt-6 mt-4">
+              <label className="block text-sm font-bold text-gray-700 mb-2">Sales / Order Capacity Mode</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, salesType: 'single', quantity: 1 })}
+                  className={cn(
+                    "p-4 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1",
+                    formData.salesType === 'single'
+                      ? "border-indigo-600 bg-indigo-50/50 text-indigo-950"
+                      : "border-gray-100 hover:border-gray-200 text-gray-600"
+                  )}
+                >
+                  <span className="text-sm font-bold block">One-time Gig (Sell Once)</span>
+                  <span className="text-xs text-gray-400">Exclusive delivery. This service closes and shows "SOLD" after purchase.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, salesType: 'limited' })}
+                  className={cn(
+                    "p-4 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1",
+                    formData.salesType === 'limited'
+                      ? "border-indigo-600 bg-indigo-50/50 text-indigo-950"
+                      : "border-gray-100 hover:border-gray-200 text-gray-600"
+                  )}
+                >
+                  <span className="text-sm font-bold block">Limited Orders</span>
+                  <span className="text-xs text-gray-400">Can only accept a specific number of orders before closing.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, salesType: 'unlimited', quantity: 999999 })}
+                  className={cn(
+                    "p-4 rounded-xl border-2 text-left transition-all flex flex-col justify-between gap-1",
+                    formData.salesType === 'unlimited'
+                      ? "border-indigo-600 bg-indigo-50/50 text-indigo-950"
+                      : "border-gray-100 hover:border-gray-200 text-gray-600"
+                  )}
+                >
+                  <span className="text-sm font-bold block">Unlimited Orders</span>
+                  <span className="text-xs text-gray-400">Accept unlimited concurrent orders/sales over time.</span>
+                </button>
+              </div>
+
+              {formData.salesType === 'limited' && (
+                <div className="mt-4 animate-fadeIn">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Available Quantity / Cap</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+                    placeholder="Enter order capacity (e.g. 5)"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: Math.max(1, Number(e.target.value)) })}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ProfileAvatar from '../components/ProfileAvatar';
 import ReactMarkdown from 'react-markdown';
 import LoadingScreen from '../components/LoadingScreen';
+import ReviewsModal from '../components/ReviewsModal';
 
 export default function ListingDetails() {
   const { id } = useParams();
@@ -53,6 +54,7 @@ export default function ListingDetails() {
   const [feedback, setFeedback] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [isSubmittingFavorite, setIsSubmittingFavorite] = useState(false);
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false);
 
   const isFavorite = profile?.favorites?.includes(id || '');
 
@@ -659,11 +661,16 @@ export default function ListingDetails() {
                   <span className="text-xs font-bold text-gray-400">Response Time</span>
                   <span className="text-sm font-black text-gray-900">{seller?.responseTime || '< 2 Hours'}</span>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-                  <span className="text-xs font-bold text-gray-400">Rating</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-3 h-3 text-amber-500 fill-current" />
-                    <span className="text-sm font-black text-gray-900">{seller?.rating ? seller.rating.toFixed(1) : 'No ratings'}</span>
+                <div 
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl cursor-pointer hover:bg-gray-100 transition-all"
+                  onClick={() => seller && setIsReviewsOpen(true)}
+                >
+                  <span className="text-xs font-bold text-gray-400">Rating (Click to view)</span>
+                  <div className="flex items-center gap-1.5">
+                    <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
+                    <span className="text-sm font-black text-gray-900">
+                      {seller?.rating && seller.rating > 0 ? `${seller.rating.toFixed(1)} (${seller.totalReviews || 0})` : 'No ratings'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -683,6 +690,13 @@ export default function ListingDetails() {
           </div>
         </div>
       </div>
+      {seller && (
+        <ReviewsModal
+          isOpen={isReviewsOpen}
+          onClose={() => setIsReviewsOpen(false)}
+          userId={seller.uid}
+        />
+      )}
     </div>
   );
 }

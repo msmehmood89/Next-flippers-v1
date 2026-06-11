@@ -13,6 +13,7 @@ import {
 import { formatCurrency, cn, getOnlineStatus } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import ProfileAvatar from '../components/ProfileAvatar';
+import ReviewsModal from '../components/ReviewsModal';
 
 export default function ProfileView() {
   const { username } = useParams();
@@ -22,6 +23,7 @@ export default function ProfileView() {
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'profile' | 'buyer' | 'seller' | 'freelancer'>('profile');
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -178,12 +180,19 @@ export default function ProfileView() {
 
             {/* Stats Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-10 pt-8 border-t border-gray-50">
-              <div className="space-y-1">
-                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Trust Rating</div>
+              <div 
+                className="space-y-1 cursor-pointer group hover:opacity-80 transition-all"
+                onClick={() => setIsReviewsOpen(true)}
+              >
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest group-hover:text-indigo-600 transition-colors">Trust Rating (Click to view)</div>
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                  <span className="text-lg font-black">{profile.rating || '5.0'}</span>
-                  <span className="text-xs text-gray-400">({profile.totalReviews || 0})</span>
+                  <span className="text-lg font-black">
+                    {profile.rating && profile.rating > 0 ? profile.rating.toFixed(1) : 'No ratings'}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    ({profile.totalReviews || 0})
+                  </span>
                 </div>
               </div>
               <div className="space-y-1">
@@ -223,15 +232,24 @@ export default function ProfileView() {
                 {[
                   { label: 'Response Rate', value: '100%', color: 'from-emerald-500 to-teal-500' },
                   { label: 'Orders Completed', value: `${profile.ordersCompleted || 0}`, color: 'from-indigo-500 to-blue-500', isCount: true },
-                  { label: 'Satisfaction', value: `${profile.rating ? profile.rating.toFixed(1) : '5.0'}/5`, color: 'from-amber-500 to-orange-500' }
+                  { 
+                    label: 'Satisfaction', 
+                    value: profile.rating && profile.rating > 0 ? `${profile.rating.toFixed(1)}/5 (${profile.totalReviews || 0} reviews)` : 'No ratings', 
+                    color: 'from-amber-500 to-orange-500',
+                    isClickable: true
+                  }
                 ].map((stat, i) => (
-                  <div key={i}>
+                  <div 
+                    key={i}
+                    className={cn(stat.isClickable ? "cursor-pointer group hover:opacity-80 transition-all" : "")}
+                    onClick={() => stat.isClickable && setIsReviewsOpen(true)}
+                  >
                     <div className="flex justify-between text-xs font-bold mb-2">
-                      <span className="text-gray-400 uppercase tracking-wide">{stat.label}</span>
+                      <span className={cn("text-gray-400 uppercase tracking-wide", stat.isClickable ? "group-hover:text-indigo-600 transition-colors" : "")}>{stat.label}</span>
                       <span className="text-gray-900">{stat.value}</span>
                     </div>
                     <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden">
-                      <div className={cn("h-full rounded-full bg-gradient-to-r", stat.color)} style={{ width: (stat as any).isCount ? '100%' : stat.value.includes('%') ? stat.value : '90%' }} />
+                      <div className={cn("h-full rounded-full bg-gradient-to-r", stat.color)} style={{ width: (stat as any).isCount ? '100%' : (stat.value.includes('%') ? stat.value : (profile.rating && profile.rating > 0 ? `${(profile.rating / 5) * 100}%` : '0%')) }} />
                     </div>
                   </div>
                 ))}
@@ -407,6 +425,12 @@ export default function ProfileView() {
             </AnimatePresence>
           </div>
         </div>
+
+        <ReviewsModal
+          isOpen={isReviewsOpen}
+          onClose={() => setIsReviewsOpen(false)}
+          userId={profile.uid}
+        />
       </div>
     </div>
   );

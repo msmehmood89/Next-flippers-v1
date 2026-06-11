@@ -15,6 +15,7 @@ import {
 import { formatCurrency, cn, getOnlineStatus } from '../lib/utils';
 import ProfileAvatar from '../components/ProfileAvatar';
 import LoadingScreen from '../components/LoadingScreen';
+import ReviewsModal from '../components/ReviewsModal';
 
 export default function GigDetails() {
   const { id } = useParams();
@@ -26,6 +27,7 @@ export default function GigDetails() {
   const [loading, setLoading] = useState(true);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [isSubmittingFavorite, setIsSubmittingFavorite] = useState(false);
 
@@ -309,9 +311,15 @@ export default function GigDetails() {
                   <div>
                     <div className="text-sm font-bold text-gray-900">{seller?.name}</div>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="flex items-center gap-1 text-amber-500">
+                      <div 
+                        className="flex items-center gap-1 text-amber-500 cursor-pointer hover:opacity-80 transition-all"
+                        onClick={() => seller && setIsReviewsOpen(true)}
+                        title="Click to view reviews"
+                      >
                         <Star className="w-3 h-3 fill-current" />
-                        <span className="text-[10px] font-black">{seller?.rating ? seller.rating.toFixed(1) : 'No ratings'}</span>
+                        <span className="text-[10px] font-black underline decoration-dashed underline-offset-2">
+                          {seller?.rating && seller.rating > 0 ? `${seller.rating.toFixed(1)} (${seller.totalReviews || 0} reviews)` : 'No ratings'}
+                        </span>
                       </div>
                       <div className="h-3 w-px bg-gray-200" />
                       <div className="flex items-center gap-1">
@@ -512,6 +520,13 @@ export default function GigDetails() {
           </div>
         </div>
       </div>
+      {seller && (
+        <ReviewsModal
+          isOpen={isReviewsOpen}
+          onClose={() => setIsReviewsOpen(false)}
+          userId={seller.uid}
+        />
+      )}
     </div>
   );
 }

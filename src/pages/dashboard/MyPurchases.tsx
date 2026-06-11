@@ -144,7 +144,9 @@ export default function MyPurchases() {
       const updateData: any = {
         [ratingField]: newRating,
         [reviewsField]: newTotalReviews,
-        ordersCompleted: (sellerData.ordersCompleted || 0) + 1
+        ordersCompleted: (sellerData.ordersCompleted || 0) + 1,
+        totalSales: (sellerData.totalSales || 0) + transData.salePrice,
+        websitesSold: (sellerData.websitesSold || 0) + (transData.listingId ? 1 : 0)
       };
 
       // Also update overall rating for legacy/general view
@@ -164,6 +166,17 @@ export default function MyPurchases() {
       }
 
       await updateDoc(sellerRef, updateData);
+
+      // Update Buyer Stats on completion
+      const buyerRef = doc(db, 'users', transData.buyerId);
+      const buyerSnap = await getDoc(buyerRef);
+      if (buyerSnap.exists()) {
+        const buyerData = buyerSnap.data() as UserProfile;
+        await updateDoc(buyerRef, {
+          totalPurchases: (buyerData.totalPurchases || 0) + transData.salePrice,
+          websitesBought: (buyerData.websitesBought || 0) + (transData.listingId ? 1 : 0)
+        });
+      }
 
       // Notify seller
       await createNotification(

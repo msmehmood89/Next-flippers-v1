@@ -231,6 +231,17 @@ export default function AdminDashboard() {
               websitesSold: (sellerData.websitesSold || 0) + (transData.listingId ? 1 : 0)
             });
           }
+
+          // Update Buyer Stats on completion
+          const buyerRef = doc(db, 'users', transData.buyerId);
+          const buyerSnap = await getDoc(buyerRef);
+          if (buyerSnap.exists()) {
+            const buyerData = buyerSnap.data();
+            await updateDoc(buyerRef, {
+              totalPurchases: (buyerData.totalPurchases || 0) + transData.salePrice,
+              websitesBought: (buyerData.websitesBought || 0) + (transData.listingId ? 1 : 0)
+            });
+          }
         }
       }
       

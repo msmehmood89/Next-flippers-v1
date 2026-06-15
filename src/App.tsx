@@ -29,6 +29,9 @@ import Receipt from './pages/Receipt';
 import Statistics from './pages/Statistics';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import Disclaimer from './pages/Disclaimer';
+import RefundPolicy from './pages/RefundPolicy';
+import HowItWorks from './pages/HowItWorks';
 import Contact from './pages/Contact';
 import { CartProvider } from './contexts/CartContext';
 import Cart from './pages/Cart';
@@ -230,6 +233,9 @@ export default function App() {
                 <Route path="/support" element={<Support />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/disclaimer" element={<Disclaimer />} />
+                <Route path="/refund-policy" element={<RefundPolicy />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/profile/:username" element={<ProfileView />} />
                 <Route path="/statistics/:userId" element={<Statistics />} />

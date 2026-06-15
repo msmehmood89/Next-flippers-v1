@@ -36,7 +36,7 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6">Marketplace</h3>
             <ul className="space-y-4">
-              {['Browse Websites', 'Featured Listings', 'New Arrivals', 'How it Works', 'Success Stories'].map(item => (
+              {['Browse Websites', 'Featured Listings', 'New Arrivals', 'Success Stories'].map(item => (
                 <li key={item}>
                   <Link to="/browse" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">{item}</Link>
                 </li>
@@ -59,6 +59,12 @@ export default function Footer() {
               </li>
               <li>
                 <Link to="/privacy" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Privacy Policy</Link>
+              </li>
+              <li>
+                <Link to="/disclaimer" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Disclaimer</Link>
+              </li>
+              <li>
+                <Link to="/refund-policy" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Refund & Escrow Policy</Link>
               </li>
             </ul>
           </div>

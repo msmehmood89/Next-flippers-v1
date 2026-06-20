@@ -101,6 +101,115 @@ export function isUserOnline(lastActiveAt?: any): boolean {
   }
 }
 
+export function convertHtmlToMarkdown(htmlString: string): string {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, 'text/html');
+    const body = doc.body;
+
+    function processNode(node: Node): string {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent || '';
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return '';
+      }
+
+      const el = node as HTMLElement;
+      const tagName = el.tagName.toLowerCase();
+      let childrenContent = '';
+      
+      for (let i = 0; i < el.childNodes.length; i++) {
+        childrenContent += processNode(el.childNodes[i]);
+      }
+
+      switch (tagName) {
+        case 'p':
+        case 'div': {
+          let styleAttr = el.getAttribute('style') || '';
+          if (styleAttr.includes('color')) {
+            const colorMatch = styleAttr.match(/color:\s*([^;]+)/);
+            if (colorMatch && colorMatch[1]) {
+              return `\n<span style="color: ${colorMatch[1].trim()}">${childrenContent}</span>\n`;
+            }
+          }
+          return `\n${childrenContent}\n`;
+        }
+        case 'br':
+          return '\n';
+        case 'h1':
+          return `\n# ${childrenContent.trim()}\n`;
+        case 'h2':
+          return `\n## ${childrenContent.trim()}\n`;
+        case 'h3':
+          return `\n### ${childrenContent.trim()}\n`;
+        case 'h4':
+          return `\n#### ${childrenContent.trim()}\n`;
+        case 'strong':
+        case 'b':
+          return `**${childrenContent}**`;
+        case 'em':
+        case 'i':
+          return `*${childrenContent}*`;
+        case 'u':
+          return `_${childrenContent}_`;
+        case 'span': {
+          let styleAttr = el.getAttribute('style') || '';
+          if (styleAttr.includes('color')) {
+            const colorMatch = styleAttr.match(/color:\s*([^;]+)/);
+            if (colorMatch && colorMatch[1]) {
+              return `<span style="color: ${colorMatch[1].trim()}">${childrenContent}</span>`;
+            }
+          }
+          return childrenContent;
+        }
+        case 'font': {
+          const colorAttr = el.getAttribute('color');
+          if (colorAttr) {
+            return `<span style="color: ${colorAttr.trim()}">${childrenContent}</span>`;
+          }
+          return childrenContent;
+        }
+        case 'ul':
+          return `\n${childrenContent}\n`;
+        case 'ol':
+          return `\n${childrenContent}\n`;
+        case 'li': {
+          const parentTag = el.parentElement?.tagName.toLowerCase();
+          if (parentTag === 'ol') {
+            return `1. ${childrenContent.trim()}\n`;
+          }
+          return `* ${childrenContent.trim()}\n`;
+        }
+        case 'blockquote':
+          return `\n> ${childrenContent.trim()}\n`;
+        case 'pre':
+        case 'code':
+          return ` \`${childrenContent}\` `;
+        case 'a': {
+          const href = el.getAttribute('href') || '#';
+          return `[${childrenContent}](${href})`;
+        }
+        default:
+          return childrenContent;
+      }
+    }
+
+    let markdown = '';
+    for (let i = 0; i < body.childNodes.length; i++) {
+      markdown += processNode(body.childNodes[i]);
+    }
+
+    return markdown
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  } catch (error) {
+    console.error('Error converting HTML to Markdown:', error);
+    return htmlString;
+  }
+}
+
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',

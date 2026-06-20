@@ -20,6 +20,7 @@ export default function Support() {
   const [userReply, setUserReply] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     subject: '',
     category: 'general',
@@ -386,14 +387,42 @@ export default function Support() {
                 Common FAQs
               </h3>
               <div className="space-y-4">
-                {faqs.map((faq, i) => (
-                  <div key={i} className="group cursor-pointer">
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl group-hover:bg-indigo-50 transition-colors">
-                      <span className="text-xs font-bold text-gray-700 group-hover:text-indigo-600">{faq.q}</span>
-                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-600" />
+                {faqs.map((faq, i) => {
+                  const isOpen = openFaq === i;
+                  return (
+                    <div 
+                      key={i} 
+                      className="border border-gray-100 rounded-2xl overflow-hidden bg-gray-50/50 hover:bg-white hover:border-indigo-100 transition-all shadow-sm"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setOpenFaq(isOpen ? null : i)}
+                        className="w-full flex items-center justify-between p-4 text-left transition-colors font-bold text-gray-800 hover:text-indigo-600 focus:outline-none"
+                      >
+                        <span className="text-xs">{faq.q}</span>
+                        <ChevronRight className={cn(
+                          "w-4 h-4 text-gray-400 transition-transform duration-300",
+                          isOpen && "rotate-90 text-indigo-600"
+                        )} />
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="p-4 pt-1 bg-white border-t border-gray-50 text-xs font-medium text-gray-500 leading-relaxed">
+                              {faq.a}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </motion.div>
 

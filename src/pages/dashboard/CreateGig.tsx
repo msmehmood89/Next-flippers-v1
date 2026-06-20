@@ -8,9 +8,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Briefcase, DollarSign, Clock, Layout, 
   FileText, CheckCircle2, ArrowRight, Image as ImageIcon, 
-  X, PlusCircle, AlertCircle, Info
+  X, PlusCircle, AlertCircle, Info,
+  Bold, Italic, Underline, List, ListOrdered, Quote, Minus, Link as LinkIcon, Palette, Undo, Type
 } from 'lucide-react';
-import { cn, handleFirestoreError, OperationType, resizeImage } from '../../lib/utils';
+import { cn, handleFirestoreError, OperationType, resizeImage, convertHtmlToMarkdown } from '../../lib/utils';
+import ReactMarkdown from 'react-markdown';
 
 const GIG_CATEGORIES = [
   'Web Development',
@@ -35,6 +37,54 @@ export default function CreateGig() {
   const [fetching, setFetching] = useState(!!id);
   const [showSuccess, setShowSuccess] = useState(false);
   const [originalGigData, setOriginalGigData] = useState<Gig | null>(null);
+  const [descriptionTab, setDescriptionTab] = useState<'edit' | 'preview'>('edit');
+  const [showColors, setShowColors] = useState(false);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  const insertFormat = (before: string, after: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = formData.description || '';
+    const selection = value.substring(start, end);
+
+    const replacement = before + (selection || '') + after;
+    const newValue = value.substring(0, start) + replacement + value.substring(end);
+
+    setFormData(prev => ({ ...prev, description: newValue }));
+
+    setTimeout(() => {
+      textarea.focus();
+      const offset = (selection || '').length ? 0 : -after.length; // place inside wrapper if was empty
+      const newCursorPos = start + before.length + (selection || '').length + after.length + offset;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 50);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const html = e.clipboardData.getData('text/html');
+    if (html) {
+      e.preventDefault();
+      const markdown = convertHtmlToMarkdown(html);
+      
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const value = formData.description || '';
+
+      const newValue = value.substring(0, start) + markdown + value.substring(end);
+      setFormData(prev => ({ ...prev, description: newValue }));
+
+      setTimeout(() => {
+        const newCursorPos = start + markdown.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 50);
+    }
+  };
 
   const [formData, setFormData] = useState({
     title: '',
@@ -271,22 +321,213 @@ export default function CreateGig() {
         </div>
 
         {/* Description */}
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-600" />
-            Service Description
-          </h2>
-          <textarea
-            required
-            rows={8}
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all resize-none"
-            placeholder="Explain exactly what you offer, your process, and what the buyer will receive..."
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          />
-          <div className="mt-4 p-4 bg-indigo-50 rounded-2xl flex gap-3">
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-50 pb-4">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-indigo-600" />
+              Service Description
+            </h2>
+            <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => setDescriptionTab('edit')}
+                className={cn(
+                  "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                  descriptionTab === 'edit' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                )}
+              >
+                ✏️ Edit & Format
+              </button>
+              <button
+                type="button"
+                onClick={() => setDescriptionTab('preview')}
+                className={cn(
+                  "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                  descriptionTab === 'preview' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                )}
+              >
+                👁️ Live Preview
+              </button>
+            </div>
+          </div>
+
+          {descriptionTab === 'edit' ? (
+            <div className="space-y-3">
+              {/* Text Formatting Toolbar */}
+              <div className="flex flex-wrap items-center gap-1 bg-gray-50 p-2 rounded-2xl border border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => insertFormat('**', '**')}
+                  title="Bold Text"
+                  className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-white rounded-xl transition-all"
+                >
+                  <Bold className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertFormat('*', '*')}
+                  title="Italic Text"
+                  className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-white rounded-xl transition-all"
+                >
+                  <Italic className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertFormat('_', '_')}
+                  title="Underline"
+                  className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-white rounded-xl transition-all"
+                >
+                  <Underline className="w-4 h-4" />
+                </button>
+
+                <div className="w-px h-5 bg-gray-200 mx-1" />
+
+                <button
+                  type="button"
+                  onClick={() => insertFormat('\n# ', '\n')}
+                  title="Heading 1"
+                  className="px-2 py-1 text-xs font-black text-gray-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all"
+                >
+                  H1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertFormat('\n## ', '\n')}
+                  title="Heading 2"
+                  className="px-2 py-1 text-xs font-black text-gray-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all"
+                >
+                  H2
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertFormat('\n### ', '\n')}
+                  title="Heading 3"
+                  className="px-2 py-1 text-xs font-black text-gray-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all"
+                >
+                  H3
+                </button>
+
+                <div className="w-px h-5 bg-gray-200 mx-1" />
+
+                <button
+                  type="button"
+                  onClick={() => insertFormat('\n* ', '\n')}
+                  title="Bullet List"
+                  className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-white rounded-xl transition-all"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertFormat('\n1. ', '\n')}
+                  title="Numbered List"
+                  className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-white rounded-xl transition-all"
+                >
+                  <ListOrdered className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertFormat('\n> ', '\n')}
+                  title="Blockquote"
+                  className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-white rounded-xl transition-all"
+                >
+                  <Quote className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertFormat('\n---\n')}
+                  title="Divider Line"
+                  className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-white rounded-xl transition-all"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertFormat('[', '](https://example.com)')}
+                  title="Insert Hyperlink"
+                  className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-white rounded-xl transition-all"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                </button>
+
+                <div className="w-px h-5 bg-gray-200 mx-1" />
+
+                <button
+                  type="button"
+                  onClick={() => setShowColors(!showColors)}
+                  title="Highlight Text Color"
+                  className={cn(
+                    "p-2 rounded-xl transition-all flex items-center gap-1",
+                    showColors ? "bg-indigo-50 text-indigo-600" : "text-gray-600 hover:text-indigo-600 hover:bg-white"
+                  )}
+                >
+                  <Palette className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">Colors</span>
+                </button>
+
+                {showColors && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-white rounded-xl border border-indigo-100 shadow-sm animate-fadeIn ml-2">
+                    {[
+                      { code: '#ef4444', label: 'Red' },
+                      { code: '#3b82f6', label: 'Blue' },
+                      { code: '#10b981', label: 'Green' },
+                      { code: '#f97316', label: 'Orange' },
+                      { code: '#8b5cf6', label: 'Purple' },
+                      { code: '#ec4899', label: 'Pink' },
+                      { code: '#facc15', label: 'Yellow' },
+                      { code: '#4b5563', label: 'Slate' }
+                    ].map((col) => (
+                      <button
+                        key={col.code}
+                        type="button"
+                        onClick={() => {
+                          insertFormat(`<span style="color: ${col.code}">`, '</span>');
+                          setShowColors(false);
+                        }}
+                        title={col.label}
+                        className="w-4 h-4 rounded-full border border-gray-200 hover:scale-125 transition-transform"
+                        style={{ backgroundColor: col.code }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <textarea
+                ref={textareaRef}
+                required
+                rows={10}
+                onPaste={handlePaste}
+                className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 focus:bg-white outline-none transition-all resize-none shadow-inner font-medium text-gray-700 text-sm leading-relaxed"
+                placeholder="Explain exactly what you offer, your process, and what the buyer will receive..."
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-gray-400">
+                <span className="flex items-center gap-1 text-indigo-600 font-bold">
+                  <span>💡</span>
+                  <span>Paste Rich-Text (from Word, Websites, Notepad) to automatically format it here!</span>
+                </span>
+                <span>Supports full Markdown and safe HTML.</span>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gray-50/50 rounded-2xl border border-gray-100 p-6 min-h-[250px] max-h-[500px] overflow-y-auto block">
+              {formData.description ? (
+                <div className="markdown-body">
+                  <ReactMarkdown>{formData.description}</ReactMarkdown>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-400 font-medium text-sm">
+                  No description provided yet. Go to Edit view and write something!
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mt-4 p-4 bg-indigo-50/50 border border-indigo-100/50 rounded-2xl flex gap-3">
             <Info className="w-5 h-5 text-indigo-600 flex-shrink-0" />
-            <p className="text-xs text-indigo-700 leading-relaxed">
+            <p className="text-xs text-indigo-700 leading-relaxed font-medium">
               Be as detailed as possible. Mention your experience, tools you use, and any specific requirements you have for the buyer.
             </p>
           </div>

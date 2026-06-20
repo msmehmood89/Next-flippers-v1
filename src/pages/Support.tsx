@@ -332,22 +332,25 @@ export default function Support() {
                   className="flex items-center gap-4 p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all group"
                 >
                   <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
-                    <MessageCircle className="w-5 h-5" />
+                    <MessageCircle className="w-5 h-5 animate-pulse" />
                   </div>
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-widest opacity-60">WhatsApp Support</div>
-                    <div className="text-sm font-bold">+92 333 0758018</div>
+                    <div className="text-sm font-bold">Open Chat</div>
                   </div>
                 </a>
-                <div className="flex items-center gap-4 px-4">
-                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                <a 
+                  href="mailto:support@nextflippers.com"
+                  className="flex items-center gap-4 p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all group"
+                >
+                  <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
                     <Mail className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Email Us</div>
-                    <div className="text-sm font-bold">support@nextflippers.com</div>
+                    <div className="text-sm font-bold">Compose Email</div>
                   </div>
-                </div>
+                </a>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
                     <Clock className="w-5 h-5" />

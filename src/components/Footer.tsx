@@ -36,11 +36,25 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6">Marketplace</h3>
             <ul className="space-y-4">
-              {['Browse Websites', 'Featured Listings', 'New Arrivals', 'Success Stories'].map(item => (
-                <li key={item}>
-                  <Link to="/browse" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">{item}</Link>
-                </li>
-              ))}
+              <li>
+                <Link to="/browse" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Browse Websites</Link>
+              </li>
+              <li>
+                <Link to="/browse" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors font-medium">Featured Listings</Link>
+              </li>
+              <li>
+                <Link to="/report-bug" className="text-sm text-gray-500 hover:text-rose-600 hover:font-medium transition-colors flex items-center gap-1">
+                  Report Bug
+                </Link>
+              </li>
+              <li>
+                <Link to="/request-improvement" className="text-sm text-gray-500 hover:text-indigo-600 hover:font-medium transition-colors flex items-center gap-1">
+                  Request Improvement
+                </Link>
+              </li>
+              <li>
+                <Link to="/browse" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">Success Stories</Link>
+              </li>
             </ul>
           </div>
 
@@ -73,11 +87,16 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6">Contact Us</h3>
             <ul className="space-y-4">
-              <li className="flex items-start gap-3 text-sm text-gray-500">
+              <li className="flex items-center gap-3 text-sm text-gray-500">
                 <Mail className="w-5 h-5 text-indigo-600 flex-shrink-0" />
-                <span>support@nextflippers.com</span>
+                <a 
+                  href="mailto:support@nextflippers.com"
+                  className="hover:text-indigo-600 transition-colors"
+                >
+                  support@nextflippers.com
+                </a>
               </li>
-              <li className="flex items-start gap-3 text-sm text-gray-500">
+              <li className="flex items-center gap-3 text-sm text-gray-500">
                 <div className="p-1 bg-green-50 rounded flex-shrink-0">
                   <MessageCircle className="w-4 h-4 text-green-600" />
                 </div>
@@ -85,9 +104,9 @@ export default function Footer() {
                   href="https://wa.me/923330758018" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="hover:text-green-600 font-medium"
+                  className="hover:text-green-600 transition-colors font-medium"
                 >
-                  +92 333 0758018 (WhatsApp)
+                  WhatsApp Support
                 </a>
               </li>
               <li className="flex items-start gap-3 text-sm text-gray-500">

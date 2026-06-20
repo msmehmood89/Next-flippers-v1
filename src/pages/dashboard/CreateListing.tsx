@@ -58,11 +58,12 @@ const PLATFORMS = {
 
 export default function CreateListing() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [originalListingData, setOriginalListingData] = useState<Listing | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -111,11 +112,12 @@ export default function CreateListing() {
           const docSnap = await getDoc(doc(db, 'listings', id));
           if (docSnap.exists()) {
             const data = docSnap.data() as Listing;
-            if (data.userId !== user?.uid) {
+            if (data.userId !== user?.uid && !isAdmin) {
               navigate('/dashboard/listings');
               return;
             }
-              setFormData({
+            setOriginalListingData(data);
+            setFormData({
                 title: data.title,
                 type: data.type || 'website',
                 url: data.url || '',
@@ -168,7 +170,8 @@ export default function CreateListing() {
     try {
       const listingData = {
         ...formData,
-        userId: user.uid,
+        userId: originalListingData?.userId || user.uid,
+        username: originalListingData?.username || null,
         updatedAt: serverTimestamp(),
       };
 

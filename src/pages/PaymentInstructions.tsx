@@ -26,7 +26,7 @@ export default function PaymentInstructions() {
   const [loading, setLoading] = useState(true);
   const [paymentProof, setPaymentProof] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'binance' | 'crypto'>('bank');
+  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'jazzcash' | 'binance' | 'crypto'>('bank');
   
   // New State variables for Buyer-Seller contact & Price Negotiation
   const [sellerProfile, setSellerProfile] = useState<UserProfile | null>(null);
@@ -452,13 +452,13 @@ export default function PaymentInstructions() {
 
   const getWhatsAppUrl = () => {
     if (!sellerProfile?.whatsappNumber) {
-      return 'https://wa.me/923057341215'; // Support fallback
+      return 'https://wa.me/923330758018'; // Support fallback
     }
     let num = sellerProfile.whatsappNumber.replace(/[^0-9]/g, '');
     if (num.startsWith('0')) {
       num = '92' + num.substring(1);
     }
-    const textMsg = `Assalamu Alaikum / Hello, I am ready to purchase your asset "${itemTitle}". Is it still available?`;
+    const textMsg = `Hello, I am ready to purchase your asset "${itemTitle}" on NextFlippers.com. Is it still available?`;
     return `https://wa.me/${num}?text=${encodeURIComponent(textMsg)}`;
   };
 
@@ -652,9 +652,10 @@ export default function PaymentInstructions() {
                 <DollarSign className="w-5 h-5 text-indigo-600" />
                 Choose Payment Method
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
                 {[
                   { id: 'bank', label: 'Bank Transfer', icon: DollarSign },
+                  { id: 'jazzcash', label: 'JazzCash', icon: DollarSign },
                   { id: 'binance', label: 'Binance ID', icon: DollarSign },
                   { id: 'crypto', label: 'USDT (TRC20)', icon: Globe },
                 ].map(method => (
@@ -663,13 +664,13 @@ export default function PaymentInstructions() {
                     key={method.id}
                     onClick={() => setPaymentMethod(method.id as any)}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-2 py-6 rounded-2xl border-2 font-bold text-sm transition-all",
+                      "flex flex-col items-center justify-center gap-2 py-5 rounded-2xl border-2 font-bold text-xs transition-all",
                       paymentMethod === method.id 
                         ? "border-indigo-600 bg-indigo-50 text-indigo-600 shadow-lg shadow-indigo-50" 
                         : "border-gray-100 text-gray-400 hover:border-gray-200"
                     )}
                   >
-                    <method.icon className="w-6 h-6" />
+                    <method.icon className="w-5 h-5" />
                     {method.label}
                   </button>
                 ))}
@@ -684,10 +685,16 @@ export default function PaymentInstructions() {
                     <div><span className="text-xs font-bold text-gray-400 uppercase block mb-1">SWIFT / BIC</span><div className="font-bold text-gray-900">MUCBPKKA</div></div>
                   </>
                 )}
+                {paymentMethod === 'jazzcash' && (
+                  <>
+                    <div><span className="text-xs font-bold text-gray-400 uppercase block mb-1">JazzCash Account Number</span><div className="font-bold text-gray-900">03057341215</div></div>
+                    <div><span className="text-xs font-bold text-gray-400 uppercase block mb-1">Account Name</span><div className="font-bold text-gray-900">Shahid Mehmood</div></div>
+                  </>
+                )}
                 {paymentMethod === 'binance' && (
                   <>
                     <div><span className="text-xs font-bold text-gray-400 uppercase block mb-1">Binance Pay ID</span><div className="font-bold text-gray-900">59550427</div></div>
-                    <div><span className="text-xs font-bold text-gray-400 uppercase block mb-1">Name</span><div className="font-bold text-gray-900">FLIPPERSCLUB</div></div>
+                    <div><span className="text-xs font-bold text-gray-400 uppercase block mb-1">Name</span><div className="font-bold text-gray-900">NEXTFLIPPERS</div></div>
                   </>
                 )}
                 {paymentMethod === 'crypto' && (
@@ -769,7 +776,7 @@ export default function PaymentInstructions() {
               <div className="text-sm font-bold text-gray-900 mb-2">Need Help?</div>
               <p className="text-xs text-gray-500 mb-4">Chat with our support team on WhatsApp for instant assistance.</p>
               <a
-                href="https://wa.me/923057341215"
+                href="https://wa.me/923330758018"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 text-indigo-600 font-bold text-sm hover:underline"

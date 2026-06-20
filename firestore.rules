@@ -213,10 +213,10 @@ service cloud.firestore {
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                         'rating', 'totalReviews', 'sellerRating', 'sellerReviews', 
                         'freelancerRating', 'freelancerReviews', 'buyerRating', 'buyerReviews', 
-                        'ordersCompleted'
+                        'ordersCompleted', 'totalSales', 'totalPurchases', 'websitesSold', 'websitesBought'
                       ]))
                     );
-      allow delete: if isOwner(userId);
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     match /listings/{listingId} {
@@ -275,9 +275,16 @@ service cloud.firestore {
     }
 
     match /transactions/{transactionId} {
-      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() && (
+        resource.data.buyerId == request.auth.uid || 
+        resource.data.sellerId == request.auth.uid || 
+        isAdmin() || 
+        resource.data.dealStatus in ['completed', 'buyer_confirmed', 'payment_released', 'seller_received'] || 
+        (resource.data.rating != null && resource.data.rating > 0)
+      );
       allow create: if isAuthenticated() && (request.resource.data.buyerId == request.auth.uid || request.resource.data.sellerId == request.auth.uid);
       allow update: if isAdmin() || isValidTransactionUpdate(resource.data, request.resource.data);
+      allow delete: if isAdmin();
     }
     
     match /gigs/{gigId} {
@@ -300,6 +307,13 @@ service cloud.firestore {
 
     match /support_tickets/{ticketId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if true;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /feedback/{feedbackId} {
+      allow read: if isAdmin();
       allow create: if true;
       allow update: if isAdmin();
       allow delete: if isAdmin();

@@ -18,6 +18,7 @@ import { cn, resizeImage } from '../../lib/utils';
 export default function UserSettings() {
   const { profile, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: profile?.name || '',
     whatsappNumber: profile?.whatsappNumber || '',
@@ -37,6 +38,7 @@ export default function UserSettings() {
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -145,6 +147,43 @@ export default function UserSettings() {
         fileInputRef.current.value = ''; // Reset input to allow selecting same file again if needed
       }
       setUploading(false);
+    }
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file.');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be under 2MB.');
+      return;
+    }
+
+    setUploadingBanner(true);
+    try {
+      const finalBannerURL = await resizeImage(file, 800, 266, 0.85);
+
+      await updateDoc(doc(db, 'users', user.uid), {
+        bannerURL: finalBannerURL
+      });
+      
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error uploading banner:', error);
+      alert('Failed to upload banner. Please check the file and try again.');
+    } finally {
+      if (bannerInputRef.current) {
+        bannerInputRef.current.value = ''; // Reset input to allow selecting same file again if needed
+      }
+      setUploadingBanner(false);
     }
   };
 
@@ -284,6 +323,40 @@ export default function UserSettings() {
               </button>
               <p className="text-[10px] text-gray-400 font-medium">JPG, PNG or GIF. Max size 2MB.</p>
             </div>
+          </div>
+
+          {/* Banner Management Card */}
+          <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 text-center">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Profile Cover Banner</h3>
+            <div className="relative rounded-2xl overflow-hidden shadow-inner bg-gray-100 h-24 mb-4 flex items-center justify-center group">
+              {profile?.bannerURL ? (
+                <img src={profile.bannerURL} className="w-full h-full object-cover" alt="Profile Banner" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+              )}
+              {uploadingBanner && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+
+            <input 
+              type="file" 
+              ref={bannerInputRef}
+              onChange={handleBannerUpload}
+              accept="image/*"
+              className="hidden"
+            />
+            <button 
+              onClick={() => bannerInputRef.current?.click()}
+              disabled={uploadingBanner}
+              className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              Change Banner
+            </button>
+            <p className="text-[10px] text-gray-400 font-medium mt-2">Recommended: 1200x400. Max ratio limits apply.</p>
           </div>
 
           {/* Account Info Card */}

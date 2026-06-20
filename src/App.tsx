@@ -33,6 +33,8 @@ import Disclaimer from './pages/Disclaimer';
 import RefundPolicy from './pages/RefundPolicy';
 import HowItWorks from './pages/HowItWorks';
 import Contact from './pages/Contact';
+import ReportBug from './pages/ReportBug';
+import RequestImprovement from './pages/RequestImprovement';
 import { CartProvider } from './contexts/CartContext';
 import Cart from './pages/Cart';
 import ProfileView from './pages/ProfileView';
@@ -237,6 +239,8 @@ export default function App() {
                 <Route path="/refund-policy" element={<RefundPolicy />} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/report-bug" element={<ReportBug />} />
+                <Route path="/request-improvement" element={<RequestImprovement />} />
                 <Route path="/profile/:username" element={<ProfileView />} />
                 <Route path="/statistics/:userId" element={<Statistics />} />
                 <Route path="/login" element={<Login />} />

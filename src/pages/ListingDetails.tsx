@@ -56,6 +56,13 @@ export default function ListingDetails() {
   const [isSubmittingFavorite, setIsSubmittingFavorite] = useState(false);
   const [isReviewsOpen, setIsReviewsOpen] = useState(false);
 
+  // Real-time seller analytics calculated from completed transactions to bypass stale profile info
+  const [sellerCompletedDeals, setSellerCompletedDeals] = useState(0);
+  const [sellerTotalSales, setSellerTotalSales] = useState(0);
+  const [sellerWebsitesSold, setSellerWebsitesSold] = useState(0);
+  const [sellerRating, setSellerRating] = useState(0);
+  const [sellerTotalReviews, setSellerTotalReviews] = useState(0);
+
   const isFavorite = profile?.favorites?.includes(id || '');
 
   const toggleFavorite = async () => {
@@ -103,7 +110,46 @@ export default function ListingDetails() {
           // Fetch seller
           const sellerSnap = await getDoc(doc(db, 'users', data.userId));
           if (sellerSnap.exists()) {
-            setSeller({ uid: sellerSnap.id, ...sellerSnap.data() } as UserProfile);
+            const sData = { uid: sellerSnap.id, ...sellerSnap.data() } as UserProfile;
+            setSeller(sData);
+
+            // Fetch seller's actual completed transactions in real-time
+            try {
+              const txsRef = collection(db, 'transactions');
+              const [compSel, confSel, relSel, recSel] = await Promise.all([
+                getDocs(query(txsRef, where('sellerId', '==', sData.uid), where('dealStatus', '==', 'completed'))),
+                getDocs(query(txsRef, where('sellerId', '==', sData.uid), where('dealStatus', '==', 'buyer_confirmed'))),
+                getDocs(query(txsRef, where('sellerId', '==', sData.uid), where('dealStatus', '==', 'payment_released'))),
+                getDocs(query(txsRef, where('sellerId', '==', sData.uid), where('dealStatus', '==', 'seller_received')))
+              ]);
+
+              const sellerDocs = [
+                ...compSel.docs,
+                ...confSel.docs,
+                ...relSel.docs,
+                ...recSel.docs
+              ];
+
+              const calcCompleted = sellerDocs.length;
+              const calcSales = sellerDocs.reduce((sum, doc) => sum + (doc.data().salePrice || 0), 0);
+              const calcWebSold = sellerDocs.filter(doc => doc.data().listingId).length;
+
+              setSellerCompletedDeals(calcCompleted);
+              setSellerTotalSales(calcSales);
+              setSellerWebsitesSold(calcWebSold);
+
+              const ratedTxs = sellerDocs
+                .map(d => d.data())
+                .filter(tx => tx.rating && tx.rating > 0);
+
+              if (ratedTxs.length > 0) {
+                const totalRating = ratedTxs.reduce((sum, tx) => sum + tx.rating, 0);
+                setSellerRating(totalRating / ratedTxs.length);
+                setSellerTotalReviews(ratedTxs.length);
+              }
+            } catch (err) {
+              console.error('Error fetching seller real-time analytics:', err);
+            }
           }
         }
       } catch (error) {
@@ -114,6 +160,12 @@ export default function ListingDetails() {
     };
     fetchListing();
   }, [id]);
+
+  const displayTotalSales = sellerTotalSales > 0 ? sellerTotalSales : (seller?.totalSales || 0);
+  const displayWebsitesSold = sellerWebsitesSold > 0 ? sellerWebsitesSold : (seller?.websitesSold || 0);
+  const displayCompletedDeals = sellerCompletedDeals > 0 ? sellerCompletedDeals : (seller?.ordersCompleted || 0);
+  const displayRating = sellerRating > 0 ? sellerRating : (seller?.rating || 0);
+  const displayTotalReviews = sellerTotalReviews > 0 ? sellerTotalReviews : (seller?.totalReviews || 0);
 
   const handleContactSeller = async () => {
     if (!user) {
@@ -230,7 +282,7 @@ export default function ListingDetails() {
   ] : listing.type === 'other_service' ? [
     { label: 'Service Type', value: listing.category, icon: Briefcase },
     { label: 'Platform', value: listing.platform || 'Service', icon: Globe },
-    { label: 'Seller Rating', value: seller?.rating?.toFixed(1) || 'N/A', icon: Star },
+    { label: 'Seller Rating', value: displayRating > 0 ? displayRating.toFixed(1) : 'N/A', icon: Star },
     { label: 'Views', value: listing.views?.toLocaleString() || '0', icon: Activity },
   ] : [
     { label: 'Tool Type', value: listing.toolType || 'Premium', icon: Sparkles },
@@ -651,11 +703,11 @@ export default function ListingDetails() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
                   <span className="text-xs font-bold text-gray-400">Total Sales</span>
-                  <span className="text-sm font-black text-gray-900">{seller?.totalSales || 0}</span>
+                  <span className="text-sm font-black text-gray-900">{formatCurrency(displayTotalSales)}</span>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
                   <span className="text-xs font-bold text-gray-400">Websites Sold</span>
-                  <span className="text-sm font-black text-gray-900">{seller?.websitesSold || 0}</span>
+                  <span className="text-sm font-black text-gray-900">{displayWebsitesSold}</span>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
                   <span className="text-xs font-bold text-gray-400">Response Time</span>
@@ -669,22 +721,33 @@ export default function ListingDetails() {
                   <div className="flex items-center gap-1.5">
                     <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
                     <span className="text-sm font-black text-gray-900">
-                      {seller?.rating && seller.rating > 0 ? `${seller.rating.toFixed(1)} (${seller.totalReviews || 0})` : 'No ratings'}
+                      {displayRating > 0 ? `${displayRating.toFixed(1)} (${displayTotalReviews})` : 'No ratings'}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="mt-8">
-                <a
-                  href={`https://wa.me/${seller?.whatsappNumber}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-4 text-sm font-black text-green-600 bg-green-50 rounded-2xl hover:bg-green-100 transition-all"
-                >
-                  <Phone className="w-4 h-4" />
-                  WhatsApp Seller
-                </a>
+                {(() => {
+                  if (!seller?.whatsappNumber) return null;
+                  let num = seller.whatsappNumber.replace(/[^0-9]/g, '');
+                  if (num.startsWith('0')) {
+                    num = '92' + num.substring(1);
+                  }
+                  const textMsg = `Hello, I am ready to purchase your asset "${listing?.title || ''}" on NextFlippers.com. Is it still available?`;
+                  const waUrl = `https://wa.me/${num}?text=${encodeURIComponent(textMsg)}`;
+                  return (
+                    <a
+                      href={waUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full flex items-center justify-center gap-2 py-4 text-sm font-black text-green-600 bg-green-50 rounded-2xl hover:bg-green-100 transition-all"
+                    >
+                      <Phone className="w-4 h-4" />
+                      WhatsApp Seller
+                    </a>
+                  );
+                })()}
               </div>
             </div>
           </div>

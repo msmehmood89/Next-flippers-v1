@@ -268,6 +268,75 @@ app.post("/api/auth/send-otp", async (req, res) => {
   }
 });
 
+// Send User Feedback Email (Bug Report or Improvement Request)
+app.post("/api/email/feedback", async (req, res) => {
+  const { type, title, description, userName, userEmail, screenshot } = req.body;
+  
+  try {
+    checkResend();
+    
+    const feedbackTypeLabel = type === 'bug' ? "Bug Report 🐛" : "Improvement Request 💡";
+    const titleEmoji = type === 'bug' ? "🐛" : "💡";
+    
+    let contentHtml = `
+      <p>A new feedback item has been submitted through the NextFlippers platform.</p>
+      <div style="background: #f8fafc; padding: 24px; border-radius: 16px; margin: 24px 0; border: 1px solid #e2e8f0; font-family: sans-serif;">
+        <p style="margin: 0 0 12px 0; color: #475569; font-size: 14px;"><strong>Submitted By:</strong> ${userName} (${userEmail})</p>
+        <p style="margin: 0 0 12px 0; color: #475569; font-size: 14px;"><strong>Type:</strong> ${feedbackTypeLabel}</p>
+        <p style="margin: 0 0 12px 0; color: #475569; font-size: 14px;"><strong>Subject:</strong> ${title}</p>
+        <p style="margin: 0 0 8px 0; color: #475569; font-size: 14px;"><strong>Description:</strong></p>
+        <div style="background: #ffffff; padding: 16px; border-radius: 12px; border: 1px solid #f1f5f9; white-space: pre-wrap; font-size: 15px; line-height: 1.6; color: #334155;">${description}</div>
+      </div>
+    `;
+
+    if (screenshot) {
+      contentHtml += `
+        <div style="margin: 24px 0; font-family: sans-serif;">
+          <p style="margin-bottom: 8px; color: #475569; font-size: 14px;"><strong>Attached Screenshot:</strong></p>
+          <img src="${screenshot}" style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; display: block;" alt="Screenshot" />
+        </div>
+      `;
+    }
+
+    const html = getEmailTemplate(
+      `${titleEmoji} ${feedbackTypeLabel}`,
+      contentHtml,
+      "View on Admin Dashboard",
+      "https://nextflippers.com/admin"
+    );
+
+    const attachments: any[] = [];
+    if (screenshot && screenshot.startsWith('data:image/')) {
+      const matches = screenshot.match(/^data:(image\/\w+);base64,(.+)$/);
+      if (matches && matches.length === 3) {
+        const contentType = matches[1];
+        const base64Data = matches[2];
+        const fileExtension = contentType.split('/')[1] || 'png';
+        attachments.push({
+          content: base64Data,
+          filename: `screenshot_${Date.now()}.${fileExtension}`,
+          contentType: contentType
+        });
+      }
+    }
+
+    // Send it to official support and ms.mehmood749@gmail.com
+    const { data: emailData, error: emailError } = await resend!.emails.send({
+      from: "NextFlippers Feedback <support@nextflippers.com>",
+      to: ["support@nextflippers.com", "ms.mehmood749@gmail.com"],
+      subject: `[${feedbackTypeLabel.toUpperCase()}] ${title}`,
+      html,
+      attachments: attachments.length > 0 ? attachments : undefined
+    });
+
+    if (emailError) throw emailError;
+    res.json({ success: true, data: emailData });
+  } catch (error: any) {
+    console.error("Feedback Email Error:", error.message);
+    res.status(500).json({ error: error.message || "Failed to notify admin via email" });
+  }
+});
+
 // Global error handler to prevent HTML responses for API errors
 app.use("/api", (err: any, req: any, res: any, next: any) => {
   console.error("API error:", err);

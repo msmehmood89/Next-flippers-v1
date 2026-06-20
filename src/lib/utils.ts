@@ -26,10 +26,28 @@ export function calculateCommission(price: number) {
   };
 }
 
-export function getOnlineStatus(lastActiveAt?: Timestamp) {
+export function getOnlineStatus(lastActiveAt?: any) {
   if (!lastActiveAt) return 'Long ago';
+  let lastActive: Date;
+  try {
+    if (typeof lastActiveAt.toDate === 'function') {
+      lastActive = lastActiveAt.toDate();
+    } else if (lastActiveAt && typeof lastActiveAt.toMillis === 'function') {
+      lastActive = new Date(lastActiveAt.toMillis());
+    } else if (lastActiveAt && typeof lastActiveAt.seconds === 'number') {
+      lastActive = new Date(lastActiveAt.seconds * 1000);
+    } else if (lastActiveAt instanceof Date) {
+      lastActive = lastActiveAt;
+    } else {
+      lastActive = new Date(lastActiveAt);
+    }
+  } catch (err) {
+    console.error('Error parsing lastActiveAt:', err);
+    return 'Long ago';
+  }
+
+  if (!lastActive || isNaN(lastActive.getTime())) return 'Long ago';
   const now = new Date();
-  const lastActive = lastActiveAt.toDate();
   const diffInMs = now.getTime() - lastActive.getTime();
   const diffInMinutes = Math.floor(diffInMs / 60000);
 
@@ -46,18 +64,18 @@ export function getOnlineStatus(lastActiveAt?: Timestamp) {
   const minutes = diffInMinutes % 60;
 
   if (years > 0) {
-    return `${years}y${months}mo${days}d`;
+    return `${years}y ${months}mo ${days}d ago`;
   }
   if (months > 0) {
-    return `${months}mo${days}d${hours}h`;
+    return `${months}mo ${days}d ago`;
   }
   if (days > 0) {
-    return `${days}d${hours}h${minutes}m`;
+    return `${days}d ${hours}h ago`;
   }
   if (hours > 0) {
-    return `${hours}h${minutes}m`;
+    return `${hours}h ${minutes}m ago`;
   }
-  return `${minutes}m`;
+  return `${minutes}m ago`;
 }
 
 export enum OperationType {

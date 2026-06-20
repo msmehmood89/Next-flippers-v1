@@ -31,6 +31,13 @@ export default function GigDetails() {
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [isSubmittingFavorite, setIsSubmittingFavorite] = useState(false);
 
+  // Real-time seller analytics from completed transactions to bypass stale profile info
+  const [sellerCompletedDeals, setSellerCompletedDeals] = useState(0);
+  const [sellerTotalSales, setSellerTotalSales] = useState(0);
+  const [sellerWebsitesSold, setSellerWebsitesSold] = useState(0);
+  const [sellerRating, setSellerRating] = useState(0);
+  const [sellerTotalReviews, setSellerTotalReviews] = useState(0);
+
   const isFavorite = profile?.favorites?.includes(id || '');
 
   const toggleFavorite = async () => {
@@ -69,7 +76,46 @@ export default function GigDetails() {
           // Fetch seller profile
           const sellerSnap = await getDoc(doc(db, 'users', gigData.userId));
           if (sellerSnap.exists()) {
-            setSeller({ uid: sellerSnap.id, ...sellerSnap.data() } as UserProfile);
+            const sData = { uid: sellerSnap.id, ...sellerSnap.data() } as UserProfile;
+            setSeller(sData);
+
+            // Fetch seller's actual completed transactions in real-time
+            try {
+              const txsRef = collection(db, 'transactions');
+              const [compSel, confSel, relSel, recSel] = await Promise.all([
+                getDocs(query(txsRef, where('sellerId', '==', sData.uid), where('dealStatus', '==', 'completed'))),
+                getDocs(query(txsRef, where('sellerId', '==', sData.uid), where('dealStatus', '==', 'buyer_confirmed'))),
+                getDocs(query(txsRef, where('sellerId', '==', sData.uid), where('dealStatus', '==', 'payment_released'))),
+                getDocs(query(txsRef, where('sellerId', '==', sData.uid), where('dealStatus', '==', 'seller_received')))
+              ]);
+
+              const sellerDocs = [
+                ...compSel.docs,
+                ...confSel.docs,
+                ...relSel.docs,
+                ...recSel.docs
+              ];
+
+              const calcCompleted = sellerDocs.length;
+              const calcSales = sellerDocs.reduce((sum, doc) => sum + (doc.data().salePrice || 0), 0);
+              const calcWebSold = sellerDocs.filter(doc => doc.data().listingId).length;
+
+              setSellerCompletedDeals(calcCompleted);
+              setSellerTotalSales(calcSales);
+              setSellerWebsitesSold(calcWebSold);
+
+              const ratedTxs = sellerDocs
+                .map(d => d.data())
+                .filter(tx => tx.rating && tx.rating > 0);
+
+              if (ratedTxs.length > 0) {
+                const totalRating = ratedTxs.reduce((sum, tx) => sum + tx.rating, 0);
+                setSellerRating(totalRating / ratedTxs.length);
+                setSellerTotalReviews(ratedTxs.length);
+              }
+            } catch (err) {
+              console.error('Error fetching seller real-time analytics:', err);
+            }
           }
         } else {
           navigate('/freelancers');
@@ -83,6 +129,12 @@ export default function GigDetails() {
 
     fetchGigData();
   }, [id, navigate]);
+
+  const displayTotalSales = sellerTotalSales > 0 ? sellerTotalSales : (seller?.totalSales || 0);
+  const displayWebsitesSold = sellerWebsitesSold > 0 ? sellerWebsitesSold : (seller?.websitesSold || 0);
+  const displayCompletedDeals = sellerCompletedDeals > 0 ? sellerCompletedDeals : (seller?.ordersCompleted || 0);
+  const displayRating = sellerRating > 0 ? sellerRating : (seller?.rating || 0);
+  const displayTotalReviews = sellerTotalReviews > 0 ? sellerTotalReviews : (seller?.totalReviews || 0);
 
   const isAdminOrOwner = user && (user.uid === gig?.userId || profile?.role === 'admin');
 
@@ -318,7 +370,7 @@ export default function GigDetails() {
                       >
                         <Star className="w-3 h-3 fill-current" />
                         <span className="text-[10px] font-black underline decoration-dashed underline-offset-2">
-                          {seller?.rating && seller.rating > 0 ? `${seller.rating.toFixed(1)} (${seller.totalReviews || 0} reviews)` : 'No ratings'}
+                          {displayRating > 0 ? `${displayRating.toFixed(1)} (${displayTotalReviews} reviews)` : 'No ratings'}
                         </span>
                       </div>
                       <div className="h-3 w-px bg-gray-200" />
@@ -480,11 +532,11 @@ export default function GigDetails() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
                   <span className="text-xs font-bold text-gray-400">Orders Completed</span>
-                  <span className="text-sm font-black text-gray-900">{seller?.ordersCompleted || 0}</span>
+                  <span className="text-sm font-black text-gray-900">{displayCompletedDeals}</span>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
                   <span className="text-xs font-bold text-gray-400">Total Sales</span>
-                  <span className="text-sm font-black text-gray-900">{seller?.totalSales || 0}</span>
+                  <span className="text-sm font-black text-gray-900">{formatCurrency(displayTotalSales)}</span>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
                   <span className="text-xs font-bold text-gray-400">Response Time</span>

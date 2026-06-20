@@ -15,6 +15,7 @@ export interface UserProfile {
   lastActiveAt?: Timestamp;
   createdAt: Timestamp;
   photoURL?: string;
+  bannerURL?: string;
   rating?: number;
   totalReviews?: number;
   

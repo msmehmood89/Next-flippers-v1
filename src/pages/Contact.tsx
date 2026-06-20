@@ -43,8 +43,13 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">Email Us</h3>
-                  <p className="text-gray-500 mb-2">support@nextflippers.com</p>
-                  <p className="text-sm text-gray-400">Response time: Within 24 hours</p>
+                  <p className="text-gray-500 mb-3">support@nextflippers.com</p>
+                  <a 
+                    href="mailto:support@nextflippers.com"
+                    className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:underline"
+                  >
+                    Compose Email <Send className="w-4 h-4 text-indigo-600" />
+                  </a>
                 </div>
               </div>
             </div>

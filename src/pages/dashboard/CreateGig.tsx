@@ -29,11 +29,12 @@ const DELIVERY_TIMES = [
 
 export default function CreateGig() {
   const { id } = useParams();
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [originalGigData, setOriginalGigData] = useState<Gig | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -53,10 +54,11 @@ export default function CreateGig() {
           const docSnap = await getDoc(doc(db, 'gigs', id));
           if (docSnap.exists()) {
             const data = docSnap.data() as Gig;
-            if (data.userId !== user?.uid) {
+            if (data.userId !== user?.uid && !isAdmin) {
               navigate('/dashboard/gigs');
               return;
             }
+            setOriginalGigData(data);
             setFormData({
               title: data.title,
               description: data.description,
@@ -92,8 +94,9 @@ export default function CreateGig() {
     try {
       const gigData = {
         ...formData,
-        userId: user.uid,
-        userName: profile?.name || user.email || 'Freelancer',
+        userId: originalGigData?.userId || user.uid,
+        userName: originalGigData?.userName || profile?.name || user.email || 'Freelancer',
+        userUsername: originalGigData?.userUsername || profile?.username || null,
         updatedAt: serverTimestamp(),
       };
 

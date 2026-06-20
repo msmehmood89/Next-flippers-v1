@@ -13,7 +13,7 @@ import {
   Search, Filter, ExternalLink, Trash2, Shield,
   TrendingUp, TrendingDown, Activity, MoreVertical,
   Briefcase, MessageSquare, Globe, Phone, Mail, X, User as UserIcon,
-  Send, Download, Image as ImageIcon, Star, Bell
+  Send, Download, Image as ImageIcon, Star, Bell, Bug, Lightbulb
 } from 'lucide-react';
 import { formatCurrency, cn, createNotification } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -24,15 +24,17 @@ import { emailService } from '../services/emailService';
 export default function AdminDashboard() {
   const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'listings' | 'gigs' | 'users' | 'payments' | 'deals' | 'tickets'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'listings' | 'gigs' | 'users' | 'payments' | 'deals' | 'tickets' | 'feedback'>('overview');
   const [listings, setListings] = useState<Listing[]>([]);
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [feedback, setFeedback] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
   const [selectedPaymentImage, setSelectedPaymentImage] = useState<string | null>(null);
   const [adminReply, setAdminReply] = useState('');
   const [isReplying, setIsReplying] = useState(false);
@@ -68,12 +70,13 @@ export default function AdminDashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [listingsSnap, gigsSnap, usersSnap, transSnap, ticketsSnap] = await Promise.all([
+        const [listingsSnap, gigsSnap, usersSnap, transSnap, ticketsSnap, feedbackSnap] = await Promise.all([
           getDocs(query(collection(db, 'listings'), orderBy('createdAt', 'desc'))),
           getDocs(query(collection(db, 'gigs'), orderBy('createdAt', 'desc'))),
           getDocs(query(collection(db, 'users'), orderBy('createdAt', 'desc'))),
           getDocs(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'))),
-          getDocs(query(collection(db, 'support_tickets'), orderBy('createdAt', 'desc')))
+          getDocs(query(collection(db, 'support_tickets'), orderBy('createdAt', 'desc'))),
+          getDocs(query(collection(db, 'feedback'), orderBy('createdAt', 'desc')))
         ]);
 
         const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Listing));
@@ -81,12 +84,14 @@ export default function AdminDashboard() {
         const usersData = usersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
         const transData = transSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
         const ticketsData = ticketsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const feedbackData = feedbackSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         setListings(listingsData);
         setGigs(gigsData);
         setUsers(usersData);
         setTransactions(transData);
         setTickets(ticketsData);
+        setFeedback(feedbackData);
 
         setStats({
           totalUsers: usersData.length,
@@ -107,14 +112,19 @@ export default function AdminDashboard() {
     fetchData();
   }, [isAdmin]);
 
-  const handleUpdateListingStatus = async (id: string, status: Listing['status']) => {
+  const handleUpdateListingStatus = async (id: string, status: Listing['status'], feedback?: string) => {
     try {
       const listingRef = doc(db, 'listings', id);
       const listingSnap = await getDoc(listingRef);
       const listingData = listingSnap.data() as Listing;
 
-      await updateDoc(listingRef, { status });
-      setListings(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+      const updates: any = { status };
+      if (feedback !== undefined) {
+        updates.adminFeedback = feedback;
+      }
+
+      await updateDoc(listingRef, updates);
+      setListings(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
 
       // Get user email for email notification
       const userProfile = users.find(u => u.uid === listingData.userId);
@@ -122,31 +132,47 @@ export default function AdminDashboard() {
         await emailService.sendApproval(userProfile.email, listingData.title, 'listing');
       }
 
+      let subTitle = 'Listing Approved! 🎉';
+      if (status === 'rejected') subTitle = 'Listing Rejected ❌';
+      if (status === 'changes_required') subTitle = 'Listing Changes Required ⚠️';
+
+      let msg = `Your listing "${listingData.title}" has been approved and is now live.`;
+      if (status === 'rejected') {
+        msg = `Your listing "${listingData.title}" has been rejected. ${feedback ? `Feedback: ${feedback}` : 'Please check the guidelines.'}`;
+      } else if (status === 'changes_required') {
+        msg = `Your listing "${listingData.title}" requires changes before being approved. ${feedback ? `Details: ${feedback}` : ''}`;
+      }
+
       // Send notification to user
       await addDoc(collection(db, 'notifications'), {
         userId: listingData.userId,
-        title: status === 'approved' ? 'Listing Approved! 🎉' : 'Listing Rejected',
-        message: status === 'approved' 
-          ? `Your listing "${listingData.title}" has been approved and is now live.`
-          : `Your listing "${listingData.title}" has been rejected. Please check the guidelines.`,
+        title: subTitle,
+        message: msg,
         type: status === 'approved' ? 'listing_approved' : 'listing_rejected',
         link: '/dashboard/listings',
         isRead: false,
         createdAt: serverTimestamp(),
       });
+      alert(`Listing marked as ${status} successfully.`);
     } catch (error) {
       console.error('Error updating listing status:', error);
+      alert('Failed to update listing status.');
     }
   };
 
-  const handleUpdateGigStatus = async (id: string, status: Gig['status']) => {
+  const handleUpdateGigStatus = async (id: string, status: Gig['status'], feedback?: string) => {
     try {
       const gigRef = doc(db, 'gigs', id);
       const gigSnap = await getDoc(gigRef);
       const gigData = gigSnap.data() as Gig;
 
-      await updateDoc(gigRef, { status });
-      setGigs(prev => prev.map(g => g.id === id ? { ...g, status } : g));
+      const updates: any = { status };
+      if (feedback !== undefined) {
+        updates.adminFeedback = feedback;
+      }
+
+      await updateDoc(gigRef, updates);
+      setGigs(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
 
       // Get user email for email notification
       const userProfile = users.find(u => u.uid === gigData.userId);
@@ -154,21 +180,64 @@ export default function AdminDashboard() {
         await emailService.sendApproval(userProfile.email, gigData.title, 'gig');
       }
 
+      let subTitle = 'Gig Approved! 🚀';
+      if (status === 'rejected') subTitle = 'Gig Rejected ❌';
+      if (status === 'changes_required') subTitle = 'Gig Changes Required ⚠️';
+
+      let msg = `Your gig "${gigData.title}" has been approved and is now live.`;
+      if (status === 'rejected') {
+        msg = `Your gig "${gigData.title}" has been rejected. ${feedback ? `Feedback: ${feedback}` : 'Please check the guidelines.'}`;
+      } else if (status === 'changes_required') {
+        msg = `Your gig "${gigData.title}" requires changes. ${feedback ? `Details: ${feedback}` : ''}`;
+      }
+
       // Send notification to user
       await addDoc(collection(db, 'notifications'), {
         userId: gigData.userId,
-        title: status === 'active' ? 'Gig Approved! 🚀' : 'Gig Rejected',
-        message: status === 'active' 
-          ? `Your gig "${gigData.title}" has been approved and is now live.`
-          : `Your gig "${gigData.title}" has been rejected. Please check the guidelines.`,
+        title: subTitle,
+        message: msg,
         type: status === 'active' ? 'listing_approved' : 'listing_rejected',
         link: '/dashboard/gigs',
         isRead: false,
         createdAt: serverTimestamp(),
       });
+      alert(`Gig marked as ${status} successfully.`);
     } catch (error) {
       console.error('Error updating gig status:', error);
+      alert('Failed to update gig status.');
     }
+  };
+
+  const promptListingRejection = async (id: string) => {
+    const reason = window.prompt("Enter rejection feedback/reason:");
+    if (reason === null) return;
+    await handleUpdateListingStatus(id, 'rejected', reason);
+  };
+
+  const promptListingChangesRequired = async (id: string) => {
+    const reason = window.prompt("Enter detailed requirements for changes:");
+    if (reason === null) return;
+    if (reason.trim() === '') {
+      alert("Changes details are required!");
+      return;
+    }
+    await handleUpdateListingStatus(id, 'changes_required', reason);
+  };
+
+  const promptGigRejection = async (id: string) => {
+    const reason = window.prompt("Enter rejection feedback/reason:");
+    if (reason === null) return;
+    await handleUpdateGigStatus(id, 'rejected', reason);
+  };
+
+  const promptGigChangesRequired = async (id: string) => {
+    const reason = window.prompt("Enter detailed requirements for changes:");
+    if (reason === null) return;
+    if (reason.trim() === '') {
+      alert("Changes details are required!");
+      return;
+    }
+    await handleUpdateGigStatus(id, 'changes_required', reason);
   };
 
   const handleChatWithUser = async (targetUserId: string, listingId?: string, listingTitle?: string) => {
@@ -356,6 +425,19 @@ export default function AdminDashboard() {
       alert('User has been banned.');
     } catch (error) {
       console.error('Error removing user:', error);
+    }
+  };
+
+  const handleDeleteUser = async (uid: string) => {
+    if (!window.confirm('Are you absolutely sure you want to PERMANENTLY DELETE this user from the system? This action is irreversible.')) return;
+    try {
+      await deleteDoc(doc(db, 'users', uid));
+      setUsers(prev => prev.filter(u => u.uid !== uid));
+      if (selectedUser?.uid === uid) setSelectedUser(null);
+      alert('User document deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user.');
     }
   };
 
@@ -621,54 +703,73 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Reserve / Refund Option (Separated Alahda) */}
-          {trans.dealStatus !== 'completed' && trans.dealStatus !== 'refunded' && (
-            <div className="mt-2 pt-4 border-t border-dashed border-gray-100 flex items-center justify-between">
-              <div className="text-[10px] text-gray-400 font-bold italic">
-                ⚠️ Need to cancel? Use the reserve administrative tools.
-              </div>
+          {/* Reserve / Refund / Delete Options */}
+          <div className="mt-2 pt-4 border-t border-dashed border-gray-100 flex items-center justify-between gap-4">
+            <div className="text-[10px] text-gray-400 font-bold italic">
+              ⚠️ Reserve administrative actions
+            </div>
+            <div className="flex items-center gap-2">
+              {trans.dealStatus !== 'completed' && trans.dealStatus !== 'refunded' && (
+                <button
+                  onClick={async () => {
+                    if (window.confirm(`Are you absolutely sure you want to CANCEL deal #${trans.id.slice(-6).toUpperCase()} and REFUND the buyer? This action is irreversible.`)) {
+                      try {
+                        const transRef = doc(db, 'transactions', trans.id);
+                        await updateDoc(transRef, {
+                          dealStatus: 'refunded',
+                          status: 'failed'
+                        });
+
+                        // Notify seller
+                        await createNotification(
+                          trans.sellerId,
+                          'Order Cancelled by Admin 🛑',
+                          `Order #${trans.id.slice(-6).toUpperCase()} has been cancelled and funds refunded by Admin.`,
+                          'order_cancelled',
+                          '/dashboard/sales'
+                        );
+
+                        // Notify buyer
+                        await createNotification(
+                          trans.buyerId,
+                          'Order Refunded Successfully! 💳',
+                          `The admin has processed a refund of ${formatCurrency(trans.totalPaid)} for order #${trans.id.slice(-6).toUpperCase()}.`,
+                          'order_refunded',
+                          '/dashboard/purchases'
+                        );
+
+                        setTransactions(prev => prev.map(t => t.id === trans.id ? { ...t, dealStatus: 'refunded', status: 'failed' } as any : t));
+                        alert("The transaction has been successfully cancelled and refunded.");
+                      } catch (err) {
+                        console.error("Error refunding order:", err);
+                        alert("Failed to refund order.");
+                      }
+                    }
+                  }}
+                  className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all rounded-xl text-[10px] font-black uppercase tracking-wider"
+                >
+                  Cancel & Refund Order
+                </button>
+              )}
               <button
                 onClick={async () => {
-                  if (window.confirm(`Are you absolutely sure you want to CANCEL deal #${trans.id.slice(-6).toUpperCase()} and REFUND the buyer? This action is irreversible.`)) {
+                  if (window.confirm(`Are you sure you want to permanently DELETE deal/order #${trans.id.slice(-6).toUpperCase()}? This will erase it from the platform records completely.`)) {
                     try {
-                      const transRef = doc(db, 'transactions', trans.id);
-                      await updateDoc(transRef, {
-                        dealStatus: 'refunded',
-                        status: 'failed'
-                      });
-
-                      // Notify seller
-                      await createNotification(
-                        trans.sellerId,
-                        'Order Cancelled by Admin 🛑',
-                        `Order #${trans.id.slice(-6).toUpperCase()} has been cancelled and funds refunded by Admin.`,
-                        'order_cancelled',
-                        '/dashboard/sales'
-                      );
-
-                      // Notify buyer
-                      await createNotification(
-                        trans.buyerId,
-                        'Order Refunded Successfully! 💳',
-                        `The admin has processed a refund of ${formatCurrency(trans.totalPaid)} for order #${trans.id.slice(-6).toUpperCase()}.`,
-                        'order_refunded',
-                        '/dashboard/purchases'
-                      );
-
-                      setTransactions(prev => prev.map(t => t.id === trans.id ? { ...t, dealStatus: 'refunded', status: 'failed' } as any : t));
-                      alert("The transaction has been successfully cancelled and refunded.");
+                      await deleteDoc(doc(db, 'transactions', trans.id));
+                      setTransactions(prev => prev.filter(t => t.id !== trans.id));
+                      alert("Transaction record permanently deleted.");
                     } catch (err) {
-                      console.error("Error refunding order:", err);
-                      alert("Failed to refund order.");
+                      console.error("Error deleting deal:", err);
+                      alert("Failed to delete deal record.");
                     }
                   }
                 }}
-                className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all rounded-xl text-[10px] font-black uppercase tracking-wider"
+                className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 transition-all rounded-xl text-[10px] font-black uppercase tracking-wider"
               >
-                Cancel & Refund Order
+                Delete Deal Record
               </button>
             </div>
-          )}
+          </div>
         </div>
       </div>
     );
@@ -737,6 +838,7 @@ export default function AdminDashboard() {
             { id: 'payments', icon: DollarSign, label: 'Payments' },
             { id: 'deals', icon: Globe, label: 'Active Deals' },
             { id: 'tickets', icon: MessageSquare, label: 'Tickets' },
+            { id: 'feedback', icon: Bug, label: 'Bugs & Ideas' },
           ].map(item => (
             <button
               key={item.id}
@@ -871,92 +973,112 @@ export default function AdminDashboard() {
             </header>
 
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Listing</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Seller</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Price</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {listings.map(listing => (
-                    <tr key={listing.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden">
-                            <img src={listing.images[0] || `https://picsum.photos/seed/${listing.id}/100/100`} alt="" className="w-full h-full object-cover" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-bold text-gray-900">{listing.title}</div>
-                            <div className="text-[10px] text-gray-400 font-bold">{listing.url}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{listing.userId.slice(0, 8)}...</td>
-                      <td className="px-6 py-4 text-sm font-bold text-gray-900">{formatCurrency(listing.askingPrice)}</td>
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                          listing.status === 'approved' ? "bg-green-50 text-green-600" : 
-                          listing.status === 'pending' ? "bg-amber-50 text-amber-600" : "bg-gray-50 text-gray-400"
-                        )}>
-                          {listing.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {listing.status === 'pending' && (
-                            <button 
-                              onClick={() => handleUpdateListingStatus(listing.id, 'approved')}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Approve"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                          )}
-                          {listing.status === 'pending' && (
-                            <button 
-                              onClick={() => handleUpdateListingStatus(listing.id, 'rejected')}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Reject"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => navigate(`/listing/${listing.id}`)}
-                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="View Full Details"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleChatWithUser(listing.userId, listing.id, listing.title)}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Chat with Seller"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={async () => {
-                              if (!window.confirm('Delete this listing?')) return;
-                              await deleteDoc(doc(db, 'listings', listing.id));
-                              setListings(prev => prev.filter(l => l.id !== listing.id));
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider min-w-[200px]">Listing</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Seller</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Price</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {listings.map(listing => (
+                      <tr key={listing.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 max-w-[280px]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                              <img src={listing.images[0] || `https://picsum.photos/seed/${listing.id}/100/100`} alt="" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-bold text-gray-900 truncate" title={listing.title}>{listing.title}</div>
+                              <div className="text-[10px] text-gray-400 font-bold truncate" title={listing.url}>{listing.url}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{listing.userId.slice(0, 8)}...</td>
+                        <td className="px-6 py-4 text-sm font-bold text-gray-900 whitespace-nowrap">{formatCurrency(listing.askingPrice)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                            listing.status === 'approved' ? "bg-green-50 text-green-600" : 
+                            listing.status === 'changes_required' ? "bg-purple-50 text-purple-600" :
+                            listing.status === 'rejected' ? "bg-red-50 text-red-600" :
+                            listing.status === 'pending' ? "bg-amber-50 text-amber-600" : "bg-gray-50 text-gray-400"
+                          )}>
+                            {listing.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            {listing.status !== 'approved' && listing.status !== 'sold' && (
+                              <button 
+                                onClick={() => handleUpdateListingStatus(listing.id, 'approved')}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-transparent hover:border-green-100"
+                                title="Approve Listing"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {listing.status !== 'changes_required' && listing.status !== 'sold' && (
+                              <button 
+                                onClick={() => promptListingChangesRequired(listing.id)}
+                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors border border-transparent hover:border-purple-100"
+                                title="Changes Required"
+                              >
+                                <AlertCircle className="w-4 h-4" />
+                              </button>
+                            )}
+                            {listing.status !== 'rejected' && listing.status !== 'sold' && (
+                              <button 
+                                onClick={() => promptListingRejection(listing.id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                title="Reject Listing"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            )}
+                            <div className="h-4 w-px bg-gray-200 mx-1 animate-pulse" />
+                            <button 
+                              onClick={() => navigate(`/listing/${listing.id}`)}
+                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="View Full Details"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleChatWithUser(listing.userId, listing.id, listing.title)}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors animate-bounce-short"
+                              title="Chat with Seller"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                if (!window.confirm('Are you absolutely sure you want to PERMANENTLY DELETE this listing? This action is irreversible.')) return;
+                                try {
+                                  await deleteDoc(doc(db, 'listings', listing.id));
+                                  setListings(prev => prev.filter(l => l.id !== listing.id));
+                                  alert("Listing permanently deleted successfully.");
+                                } catch (err: any) {
+                                  console.error("Error deleting listing:", err);
+                                  alert("Failed to delete listing: " + err.message);
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete Listing permanently"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -971,90 +1093,112 @@ export default function AdminDashboard() {
             </header>
 
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Gig</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Freelancer</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Price</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {gigs.map(gig => (
-                    <tr key={gig.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden">
-                            <img src={gig.images[0] || `https://picsum.photos/seed/${gig.id}/100/100`} alt="" className="w-full h-full object-cover" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-bold text-gray-900 line-clamp-1">{gig.title}</div>
-                            <div className="text-[10px] text-gray-400 font-bold">{gig.category}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{gig.userName}</td>
-                      <td className="px-6 py-4 text-sm font-bold text-gray-900">{formatCurrency(gig.price)}</td>
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                          gig.status === 'active' ? "bg-green-50 text-green-600" : "bg-amber-50 text-amber-600"
-                        )}>
-                          {gig.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {gig.status === 'pending' && (
-                            <button 
-                              onClick={() => handleUpdateGigStatus(gig.id, 'active')}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Approve"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                          )}
-                          {gig.status === 'pending' && (
-                            <button 
-                              onClick={() => handleUpdateGigStatus(gig.id, 'rejected')}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Reject"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => navigate(`/gig/${gig.id}`)}
-                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="View"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleChatWithUser(gig.userId, gig.id, gig.title)}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Chat with Freelancer"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={async () => {
-                              if (!window.confirm('Delete this gig?')) return;
-                              await deleteDoc(doc(db, 'gigs', gig.id));
-                              setGigs(prev => prev.filter(g => g.id !== gig.id));
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider min-w-[200px]">Gig</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Freelancer</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Price</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {gigs.map(gig => (
+                      <tr key={gig.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 max-w-[280px]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                              <img src={gig.images[0] || `https://picsum.photos/seed/${gig.id}/100/100`} alt="" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-bold text-gray-900 truncate" title={gig.title}>{gig.title}</div>
+                              <div className="text-[10px] text-gray-400 font-bold truncate">{gig.category}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{gig.userName}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-gray-900 whitespace-nowrap">{formatCurrency(gig.price)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                            gig.status === 'active' || gig.status === 'approved' ? "bg-green-50 text-green-600" : 
+                            gig.status === 'changes_required' ? "bg-purple-50 text-purple-600" :
+                            gig.status === 'rejected' ? "bg-red-50 text-red-600" :
+                            gig.status === 'pending' ? "bg-amber-50 text-amber-600" : "bg-gray-50 text-gray-400"
+                          )}>
+                            {gig.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            {gig.status !== 'active' && gig.status !== 'approved' && gig.status !== 'sold' && (
+                              <button 
+                                onClick={() => handleUpdateGigStatus(gig.id, 'active')}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-transparent hover:border-green-100"
+                                title="Approve Gig (Activate)"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {gig.status !== 'changes_required' && gig.status !== 'sold' && (
+                              <button 
+                                onClick={() => promptGigChangesRequired(gig.id)}
+                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors border border-transparent hover:border-purple-100"
+                                title="Changes Required"
+                              >
+                                <AlertCircle className="w-4 h-4" />
+                              </button>
+                            )}
+                            {gig.status !== 'rejected' && gig.status !== 'sold' && (
+                              <button 
+                                onClick={() => promptGigRejection(gig.id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                title="Reject Gig"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            )}
+                            <div className="h-4 w-px bg-gray-200 mx-1" />
+                            <button 
+                              onClick={() => navigate(`/gig/${gig.id}`)}
+                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="View"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleChatWithUser(gig.userId, gig.id, gig.title)}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Chat with Freelancer"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                if (!window.confirm('Are you absolutely sure you want to PERMANENTLY DELETE this gig? This action is irreversible.')) return;
+                                try {
+                                  await deleteDoc(doc(db, 'gigs', gig.id));
+                                  setGigs(prev => prev.filter(g => g.id !== gig.id));
+                                  alert("Gig permanently deleted successfully.");
+                                } catch (err: any) {
+                                  console.error("Error deleting gig:", err);
+                                  alert("Failed to delete gig: " + err.message);
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete Gig permanently"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -1145,6 +1289,23 @@ export default function AdminDashboard() {
                     >
                       <MessageSquare className="w-5 h-5" />
                     </button>
+                    <button 
+                      onClick={async () => {
+                        if (!window.confirm('Are you sure you want to permanently delete this payment/transaction record? This action cannot be undone.')) return;
+                        try {
+                          await deleteDoc(doc(db, 'transactions', trans.id));
+                          setTransactions(prev => prev.filter(t => t.id !== trans.id));
+                          alert("Payment / transaction record permanently deleted.");
+                        } catch (err) {
+                          console.error('Error deleting transaction/payment:', err);
+                          alert('Failed to delete transaction.');
+                        }
+                      }}
+                      className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all"
+                      title="Delete Payment Record permanently"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1166,92 +1327,103 @@ export default function AdminDashboard() {
             </header>
 
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">WhatsApp</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Ratings (S/B/F)</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Joined</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {users.map(u => (
-                    <tr key={u.uid} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div 
-                          className="flex items-center gap-3 cursor-pointer hover:opacity-70 transition-opacity"
-                          onClick={() => setSelectedUser(u)}
-                        >
-                          <ProfileAvatar src={u.photoURL} gender={u.gender} size="sm" />
-                          <div>
-                            <div className="text-sm font-bold text-gray-900">{u.name || u.email}</div>
-                            <div className="text-[10px] text-gray-400 font-bold">@{u.username}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                          u.isAdmin ? "bg-purple-50 text-purple-600" : 
-                          u.role === 'seller' ? "bg-indigo-50 text-indigo-600" : "bg-blue-50 text-blue-600"
-                        )}>
-                          {u.isAdmin ? 'Admin' : u.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{u.whatsappNumber}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1 items-center">
-                          <div className="flex items-center gap-1 text-amber-500" title="Overall Rating">
-                            <Star className="w-3 h-3 fill-current" />
-                            <span className="text-xs font-black">{u.rating ? u.rating.toFixed(1) : '5.0'}</span>
-                          </div>
-                          <div className="flex gap-2">
-                             <span className="text-[9px] font-bold text-gray-400" title="Seller / Buyer / Freelancer">
-                               {u.sellerRating?.toFixed(1) || '0'} / {u.buyerRating?.toFixed(1) || '0'} / {u.freelancerRating?.toFixed(1) || '0'}
-                             </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{new Date(u.createdAt?.toDate()).toLocaleDateString()}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => setSelectedUser(u)}
-                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="View Full Profile"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleChatWithUser(u.uid)}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Chat with User"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleWarnUser(u.uid)}
-                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Warn User"
-                          >
-                            <AlertCircle className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleRemoveUser(u.uid)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Ban User"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider min-w-[180px]">User</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Role</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">WhatsApp</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Ratings (S/B/F)</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Joined</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {users.map(u => (
+                      <tr key={u.uid} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 max-w-[200px]">
+                          <div 
+                            className="flex items-center gap-3 cursor-pointer hover:opacity-70 transition-opacity"
+                            onClick={() => setSelectedUser(u)}
+                          >
+                            <ProfileAvatar src={u.photoURL} gender={u.gender} size="sm" />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-bold text-gray-900 truncate" title={u.name || u.email}>{u.name || u.email}</div>
+                              <div className="text-[10px] text-gray-400 font-bold truncate">@{u.username}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                            u.isAdmin ? "bg-purple-50 text-purple-600" : 
+                            u.role === 'seller' ? "bg-indigo-50 text-indigo-600" : "bg-blue-50 text-blue-600"
+                          )}>
+                            {u.isAdmin ? 'Admin' : u.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{u.whatsappNumber}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col gap-1 items-center">
+                            <div className="flex items-center gap-1 text-amber-500" title="Overall Rating">
+                              <Star className="w-3 h-3 fill-current" />
+                              <span className="text-xs font-black">{u.rating ? u.rating.toFixed(1) : '5.0'}</span>
+                            </div>
+                            <div className="flex gap-2">
+                               <span className="text-[9px] font-bold text-gray-400" title="Seller / Buyer / Freelancer">
+                                 {u.sellerRating?.toFixed(1) || '0'} / {u.buyerRating?.toFixed(1) || '0'} / {u.freelancerRating?.toFixed(1) || '0'}
+                               </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                          {u.createdAt?.toDate ? new Date(u.createdAt.toDate()).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => setSelectedUser(u)}
+                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="View Full Profile"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleChatWithUser(u.uid)}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Chat with User"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleWarnUser(u.uid)}
+                              className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Warn User"
+                            >
+                              <AlertCircle className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleRemoveUser(u.uid)}
+                              className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                              title="Ban User (Mark inactive)"
+                            >
+                              <Shield className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteUser(u.uid)}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete User permanently"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -1265,86 +1437,209 @@ export default function AdminDashboard() {
             </header>
 
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest min-w-[150px]">User</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest min-w-[200px]">Subject</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {tickets.map(ticket => (
+                      <tr 
+                        key={ticket.id} 
+                        onClick={() => setSelectedTicket(ticket)}
+                        className="hover:bg-gray-50/80 transition-colors cursor-pointer group"
+                      >
+                        <td className="px-6 py-4 max-w-[200px]">
+                          <div className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors truncate" title={ticket.userName || 'Anonymous'}>{ticket.userName || 'Anonymous'}</div>
+                          <div className="text-[10px] text-gray-400 font-bold truncate" title={ticket.email || 'No email provided'}>{ticket.email || 'No email provided'}</div>
+                        </td>
+                        <td className="px-6 py-4 max-w-[250px]">
+                          <div className="text-sm font-bold text-gray-900 truncate" title={ticket.subject}>{ticket.subject}</div>
+                          <div className="text-[10px] text-gray-400 font-medium truncate" title={ticket.message}>{ticket.message}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] font-black uppercase tracking-widest">
+                            {ticket.category}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                            ticket.status === 'open' ? "bg-amber-100 text-amber-600" :
+                            ticket.status === 'in-progress' ? "bg-blue-100 text-blue-600" :
+                            ticket.status === 'closed' ? "bg-gray-100 text-gray-600" :
+                            "bg-green-100 text-green-600" // resolved
+                          )}>
+                            {ticket.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-xs font-bold text-gray-500 whitespace-nowrap">
+                          {ticket.createdAt?.toDate ? ticket.createdAt.toDate().toLocaleString() : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => setSelectedTicket(ticket)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="View Details & Reply"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleChatWithUser(ticket.userId)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Reply via Direct Chat"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                const newStatus = ticket.status === 'open' ? 'closed' : 'open';
+                                try {
+                                  await updateDoc(doc(db, 'support_tickets', ticket.id), { status: newStatus });
+                                  setTickets(prev => prev.map(t => t.id === ticket.id ? { ...t, status: newStatus } : t));
+                                } catch (err) {
+                                  console.error("Error setting status:", err);
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title={ticket.status === 'open' ? "Close Ticket" : "Reopen Ticket"}
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                if (window.confirm('Are you absolutely sure you want to permanently delete this support ticket? This action is irreversible.')) {
+                                  try {
+                                    await deleteDoc(doc(db, 'support_tickets', ticket.id));
+                                    setTickets(prev => prev.filter(t => t.id !== ticket.id));
+                                    alert("Support ticket permanently deleted.");
+                                  } catch (err: any) {
+                                    alert("Failed to delete support ticket: " + err.message);
+                                  }
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete support ticket permanently"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {tickets.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center">
+                          <div className="text-gray-400 font-bold">No support tickets found.</div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'feedback' && (
+          <div className="space-y-6">
+            <header className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Bugs & Suggestions</h1>
+                <p className="text-gray-500">Track and manage user-reported issues and enhancement requests.</p>
+              </div>
+            </header>
+
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">User</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Subject</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Submitted At</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {tickets.map(ticket => (
+                  {feedback.map(item => (
                     <tr 
-                      key={ticket.id} 
-                      onClick={() => setSelectedTicket(ticket)}
+                      key={item.id} 
+                      onClick={() => setSelectedFeedback(item)}
                       className="hover:bg-gray-50/80 transition-colors cursor-pointer group"
                     >
                       <td className="px-6 py-4">
-                        <div className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{ticket.userName || 'Anonymous'}</div>
-                        <div className="text-[10px] text-gray-400 font-bold">{ticket.email || 'No email provided'}</div>
+                        <div className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{item.userName || 'Anonymous'}</div>
+                        <div className="text-[10px] text-gray-400 font-bold">{item.userEmail || 'No email provided'}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm font-bold text-gray-900">{ticket.subject}</div>
-                        <div className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{ticket.message}</div>
+                        {item.type === 'bug' ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-rose-100/50">
+                            <Bug className="w-3 h-3 text-rose-500 shrink-0" />
+                            Bug
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100/50">
+                            <Lightbulb className="w-3 h-3 text-indigo-500 shrink-0" />
+                            Idea
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] font-black uppercase tracking-widest">
-                          {ticket.category}
-                        </span>
+                        <div className="text-sm font-bold text-gray-900">{item.title}</div>
+                        <div className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">{item.description}</div>
                       </td>
                       <td className="px-6 py-4">
                         <span className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                          ticket.status === 'open' ? "bg-amber-100 text-amber-600" :
-                          ticket.status === 'in-progress' ? "bg-blue-100 text-blue-600" :
-                          ticket.status === 'closed' ? "bg-gray-100 text-gray-600" :
+                          item.status === 'pending' || !item.status ? "bg-amber-100 text-amber-600" :
+                          item.status === 'reviewed' ? "bg-blue-100 text-blue-600" :
                           "bg-green-100 text-green-600" // resolved
                         )}>
-                          {ticket.status}
+                          {item.status || 'pending'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-xs font-bold text-gray-500">
-                        {ticket.createdAt?.toDate ? ticket.createdAt.toDate().toLocaleString() : 'N/A'}
+                        {item.createdAt ? new Date(item.createdAt).toLocaleString() : 'N/A'}
                       </td>
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-2">
                           <button 
-                            onClick={() => setSelectedTicket(ticket)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="View Details & Reply"
+                            onClick={() => setSelectedFeedback(item)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
+                            title="View Feedback Details"
                           >
                             <ExternalLink className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => handleChatWithUser(ticket.userId)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Reply via Direct Chat"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                          </button>
-                          <button 
                             onClick={async () => {
-                              const newStatus = ticket.status === 'open' ? 'closed' : 'open';
-                              await updateDoc(doc(db, 'support_tickets', ticket.id), { status: newStatus });
-                              setTickets(prev => prev.map(t => t.id === ticket.id ? { ...t, status: newStatus } : t));
+                              const newStatus = (item.status === 'pending' || !item.status) ? 'reviewed' : item.status === 'reviewed' ? 'resolved' : 'pending';
+                              await updateDoc(doc(db, 'feedback', item.id), { status: newStatus });
+                              setFeedback(prev => prev.map(f => f.id === item.id ? { ...f, status: newStatus } : f));
                             }}
-                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            title={ticket.status === 'open' ? "Close Ticket" : "Reopen Ticket"}
+                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-transparent hover:border-green-100"
+                            title="Cycle Status (Pending -> Reviewed -> Resolved)"
                           >
                             <CheckCircle2 className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={async () => {
-                              if (window.confirm('Are you sure you want to delete this ticket?')) {
-                                await deleteDoc(doc(db, 'support_tickets', ticket.id));
-                                setTickets(prev => prev.filter(t => t.id !== ticket.id));
+                              if (window.confirm('Are you sure you want to delete this report?')) {
+                                await deleteDoc(doc(db, 'feedback', item.id));
+                                setFeedback(prev => prev.filter(f => f.id !== item.id));
                               }
                             }}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                            title="Delete Report"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1352,10 +1647,10 @@ export default function AdminDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {tickets.length === 0 && (
+                  {feedback.length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-6 py-12 text-center">
-                        <div className="text-gray-400 font-bold">No support tickets found.</div>
+                        <div className="text-gray-400 font-bold">No bug reports or suggestions logged yet.</div>
                       </td>
                     </tr>
                   )}
@@ -1631,6 +1926,27 @@ export default function AdminDashboard() {
                           Re-open Ticket
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        disabled={isUpdatingStatus !== null}
+                        onClick={async () => {
+                          if (!window.confirm('Are you absolutely sure you want to PERMANENTLY DELETE this support ticket? This action is irreversible.')) return;
+                          try {
+                            await deleteDoc(doc(db, 'support_tickets', selectedTicket.id));
+                            setTickets(prev => prev.filter(t => t.id !== selectedTicket.id));
+                            setSelectedTicket(null);
+                            alert("Support ticket permanently removed successfully.");
+                          } catch (err: any) {
+                            console.error("Error deleting support ticket:", err);
+                            alert("Failed to delete support ticket: " + err.message);
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-3 px-0.5 h-3" />
+                        Delete Ticket
+                      </button>
                     </div>
                     <button
                       onClick={handleAdminReply}
@@ -1647,6 +1963,134 @@ export default function AdminDashboard() {
                       )}
                     </button>
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {selectedFeedback && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" id="feedback-detail-modal">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedFeedback(null)}
+              className="absolute inset-0"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-3xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "p-3 rounded-2xl",
+                    selectedFeedback.type === 'bug' ? "bg-rose-50 text-rose-500" : "bg-indigo-50 text-indigo-500"
+                  )}>
+                    {selectedFeedback.type === 'bug' ? <Bug className="w-6 h-6" /> : <Lightbulb className="w-6 h-6" />}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                      {selectedFeedback.type === 'bug' ? "Bug Report Detail" : "Improvement Suggestion"}
+                    </span>
+                    <h3 className="text-lg font-black text-gray-900 leading-tight">{selectedFeedback.title}</h3>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedFeedback(null)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-grow overflow-y-auto p-8 space-y-8">
+                {/* Meta details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-3xl border border-slate-100/80">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Submitted By</span>
+                    <div className="text-sm font-bold text-gray-900">{selectedFeedback.userName || 'Anonymous'}</div>
+                    <div className="text-xs text-gray-500">{selectedFeedback.userEmail || 'No email'}</div>
+                  </div>
+                  <div className="space-y-1 md:text-right">
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Date Logged</span>
+                    <div className="text-sm font-bold text-gray-900">
+                      {selectedFeedback.createdAt ? new Date(selectedFeedback.createdAt).toLocaleString() : 'N/A'}
+                    </div>
+                    <div className="text-xs">
+                      <span className={cn(
+                        "inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider",
+                        selectedFeedback.status === 'pending' || !selectedFeedback.status ? "bg-amber-100 text-amber-800" :
+                        selectedFeedback.status === 'reviewed' ? "bg-blue-100 text-blue-800" :
+                        "bg-green-100 text-green-800"
+                      )}>
+                        {selectedFeedback.status || 'pending'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submittal text description */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-gray-400">Feedback Description</h4>
+                  <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 text-sm text-gray-700 font-mono whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto">
+                    {selectedFeedback.description}
+                  </div>
+                </div>
+
+                {/* Screenshot Section */}
+                {selectedFeedback.screenshot && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-gray-400">Attached Screenshot</h4>
+                    <div className="relative border border-slate-100 rounded-3xl overflow-hidden bg-slate-900 p-2 flex justify-center">
+                      <img 
+                        src={selectedFeedback.screenshot} 
+                        alt="Feedback Visual Attachment" 
+                        className="max-h-96 w-auto rounded-2xl object-contain shadow-md"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Controls footer */}
+              <div className="p-8 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <button
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to delete this feedback report?')) {
+                      await deleteDoc(doc(db, 'feedback', selectedFeedback.id));
+                      setFeedback(prev => prev.filter(f => f.id !== selectedFeedback.id));
+                      setSelectedFeedback(null);
+                    }
+                  }}
+                  className="px-6 py-3 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                >
+                  Delete Report
+                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setSelectedFeedback(null)}
+                    className="px-6 py-3 bg-white border border-gray-200 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
+                  >
+                    Close View
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const nextStatus = (selectedFeedback.status === 'pending' || !selectedFeedback.status) ? 'reviewed' : selectedFeedback.status === 'reviewed' ? 'resolved' : 'pending';
+                      await updateDoc(doc(db, 'feedback', selectedFeedback.id), { status: nextStatus });
+                      setFeedback(prev => prev.map(f => f.id === selectedFeedback.id ? { ...f, status: nextStatus } : f));
+                      setSelectedFeedback(prev => ({ ...prev, status: nextStatus }));
+                    }}
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                  >
+                    Cycle Status
+                  </button>
                 </div>
               </div>
             </motion.div>

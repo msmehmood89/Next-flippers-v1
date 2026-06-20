@@ -160,6 +160,23 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "Message timestamp." }
       },
       "required": ["senderId", "senderName", "senderUsername", "message"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "User bug report or improvement request.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of the user who submitted." },
+        "userName": { "type": "string", "description": "Name of the user." },
+        "userEmail": { "type": "string", "description": "Email of the user." },
+        "type": { "type": "string", "enum": ["bug", "improvement"], "description": "Type of feedback." },
+        "title": { "type": "string", "description": "Subject/Title for the report." },
+        "description": { "type": "string", "description": "Detailed explanation of the report." },
+        "screenshot": { "type": "string", "description": "Optional Base64 scaled screenshot data." },
+        "status": { "type": "string", "enum": ["pending", "reviewed", "resolved"], "description": "Administrative status." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Report timestamp." }
+      },
+      "required": ["userName", "userEmail", "type", "title", "description", "createdAt"]
     }
   },
   "firestore": {
@@ -170,6 +187,7 @@
     "/chats/{chatId}/messages/{messageId}": { "schema": "Message", "description": "Messages within a chat." },
     "/transactions/{transactionId}": { "schema": "Transaction", "description": "Escrow transactions." },
     "/gigs/{gigId}": { "schema": "Gig", "description": "Freelance service gigs." },
-    "/community_messages/{messageId}": { "schema": "CommunityMessage", "description": "Global community chat messages." }
+    "/community_messages/{messageId}": { "schema": "CommunityMessage", "description": "Global community chat messages." },
+    "/feedback/{feedbackId}": { "schema": "Feedback", "description": "User submitted bugs and improvement requests." }
   }
 }

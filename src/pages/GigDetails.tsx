@@ -12,7 +12,8 @@ import {
   DollarSign, Zap, Award, Globe, AlertCircle, Trash2,
   ShoppingCart, PlusCircle, Heart
 } from 'lucide-react';
-import { formatCurrency, cn, getOnlineStatus } from '../lib/utils';
+import { formatCurrency, cn, getOnlineStatus, isUserOnline } from '../lib/utils';
+import ReactMarkdown from 'react-markdown';
 import ProfileAvatar from '../components/ProfileAvatar';
 import LoadingScreen from '../components/LoadingScreen';
 import ReviewsModal from '../components/ReviewsModal';
@@ -375,7 +376,7 @@ export default function GigDetails() {
                       </div>
                       <div className="h-3 w-px bg-gray-200" />
                       <div className="flex items-center gap-1">
-                        <div className={cn("w-2 h-2 rounded-full", seller?.lastActiveAt ? "bg-green-500" : "bg-gray-300")} />
+                        <div className={cn("w-2 h-2 rounded-full", isUserOnline(seller?.lastActiveAt) ? "bg-green-500" : "bg-gray-300")} />
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{getOnlineStatus(seller?.lastActiveAt)}</span>
                       </div>
                     </div>
@@ -412,10 +413,8 @@ export default function GigDetails() {
             {/* Description */}
             <div className="bg-white rounded-[2.5rem] p-10 shadow-xl shadow-indigo-100/20 border border-gray-100">
               <h2 className="text-2xl font-black text-gray-900 mb-6">About This Gig</h2>
-              <div className="prose prose-indigo max-w-none text-gray-600 leading-relaxed font-medium">
-                {gig.description.split('\n').map((para, i) => (
-                  <p key={i} className="mb-4">{para}</p>
-                ))}
+              <div className="markdown-body text-gray-600 leading-relaxed font-medium">
+                <ReactMarkdown>{gig.description}</ReactMarkdown>
               </div>
             </div>
           </div>

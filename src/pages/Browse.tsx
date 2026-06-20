@@ -10,7 +10,7 @@ import {
   AlertCircle, SlidersHorizontal, Star, Briefcase, Gamepad2, Video, Music2,
   Instagram, Facebook, Twitter, AtSign, Package, Smartphone
 } from 'lucide-react';
-import { formatCurrency, cn, getOnlineStatus } from '../lib/utils';
+import { formatCurrency, cn, getOnlineStatus, isUserOnline } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import FavoriteButton from '../components/FavoriteButton';
 import LoadingScreen from '../components/LoadingScreen';
@@ -485,7 +485,7 @@ export default function Browse() {
                            listing.type === 'other_service' ? <Briefcase className="w-3 h-3" /> : <Star className="w-3 h-3" />}
                           {listing.url ? listing.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : (listing.platform || 'General')}
                           <div className="h-3 w-px bg-gray-200 mx-1" />
-                          <div className={cn("w-1.5 h-1.5 rounded-full", sellers[listing.userId]?.lastActiveAt ? "bg-green-500" : "bg-gray-300")} />
+                          <div className={cn("w-1.5 h-1.5 rounded-full", isUserOnline(sellers[listing.userId]?.lastActiveAt) ? "bg-green-500" : "bg-gray-300")} />
                           <span className="text-[10px] text-gray-400">{getOnlineStatus(sellers[listing.userId]?.lastActiveAt)}</span>
                         </div>
                         

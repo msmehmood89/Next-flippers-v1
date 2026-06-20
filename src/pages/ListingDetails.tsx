@@ -13,7 +13,7 @@ import {
   Users, Activity, Award, Sparkles, Phone, Trash2, Star, Briefcase, Gamepad2,
   ShoppingCart, PlusCircle, Heart, Instagram, Facebook, Twitter, AtSign, Package, Smartphone
 } from 'lucide-react';
-import { formatCurrency, cn, getOnlineStatus } from '../lib/utils';
+import { formatCurrency, cn, getOnlineStatus, isUserOnline } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import ProfileAvatar from '../components/ProfileAvatar';
 import ReactMarkdown from 'react-markdown';
@@ -540,7 +540,7 @@ export default function ListingDetails() {
                 <Info className="w-8 h-8 text-indigo-600" />
                 About This Opportunity
               </h2>
-              <div className="prose prose-indigo max-w-none text-gray-600 leading-relaxed">
+              <div className="markdown-body max-w-none text-gray-600 leading-relaxed">
                 <ReactMarkdown>{listing.description}</ReactMarkdown>
               </div>
             </div>
@@ -694,7 +694,7 @@ export default function ListingDetails() {
                 <div>
                   <div className="text-lg font-black text-gray-900">{seller?.name}</div>
                   <div className="flex items-center gap-1.5 mt-1">
-                    <div className={cn("w-2 h-2 rounded-full", seller?.lastActiveAt ? "bg-green-500" : "bg-gray-300")} />
+                    <div className={cn("w-2 h-2 rounded-full", isUserOnline(seller?.lastActiveAt) ? "bg-green-500" : "bg-gray-300")} />
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{getOnlineStatus(seller?.lastActiveAt)}</span>
                   </div>
                 </div>

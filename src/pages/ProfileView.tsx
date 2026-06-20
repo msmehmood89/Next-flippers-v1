@@ -501,7 +501,7 @@ export default function ProfileView() {
               <div className="space-y-1">
                 <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Online</div>
                 <div className="flex items-center gap-2">
-                  <div className={cn("w-2.5 h-2.5 rounded-full shadow-sm", isOnlineNow ? "bg-emerald-500 animate-pulse shadow-emerald-100" : "bg-amber-500")} />
+                  <div className={cn("w-2.5 h-2.5 rounded-full shadow-sm", isOnlineNow ? "bg-emerald-500 animate-pulse shadow-emerald-100" : "bg-gray-300")} />
                   <span className="text-lg font-black">{onlineStatusStr}</span>
                 </div>
               </div>

@@ -78,6 +78,29 @@ export function getOnlineStatus(lastActiveAt?: any) {
   return `${minutes}m ago`;
 }
 
+export function isUserOnline(lastActiveAt?: any): boolean {
+  if (!lastActiveAt) return false;
+  try {
+    let lastActive: Date;
+    if (typeof lastActiveAt.toDate === 'function') {
+      lastActive = lastActiveAt.toDate();
+    } else if (lastActiveAt && typeof lastActiveAt.toMillis === 'function') {
+      lastActive = new Date(lastActiveAt.toMillis());
+    } else if (lastActiveAt && typeof lastActiveAt.seconds === 'number') {
+      lastActive = new Date(lastActiveAt.seconds * 1000);
+    } else if (lastActiveAt instanceof Date) {
+      lastActive = lastActiveAt;
+    } else {
+      lastActive = new Date(lastActiveAt);
+    }
+    if (!lastActive || isNaN(lastActive.getTime())) return false;
+    const diffInMs = new Date().getTime() - lastActive.getTime();
+    return Math.floor(diffInMs / 60000) < 5;
+  } catch {
+    return false;
+  }
+}
+
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',

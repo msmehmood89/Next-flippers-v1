@@ -1,5 +1,6 @@
 {
   "name": "Next Flippers",
   "description": "A marketplace for buying and selling websites with manual escrow service.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

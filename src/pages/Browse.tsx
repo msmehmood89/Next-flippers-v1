@@ -483,7 +483,19 @@ export default function Browse() {
                            listing.type === 'tiktok' ? <Video className="w-3 h-3" /> : 
                            listing.type === 'games' ? <Gamepad2 className="w-3 h-3" /> :
                            listing.type === 'other_service' ? <Briefcase className="w-3 h-3" /> : <Star className="w-3 h-3" />}
-                          {listing.url ? listing.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : (listing.platform || 'General')}
+                          {listing.url ? (
+                            <a
+                              href={listing.url.startsWith('http') ? listing.url : `https://${listing.url}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-gray-500 hover:text-indigo-600 hover:underline transition-all cursor-pointer font-extrabold"
+                            >
+                              {listing.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                            </a>
+                          ) : (
+                            listing.platform || 'General'
+                          )}
                           <div className="h-3 w-px bg-gray-200 mx-1" />
                           <div className={cn("w-1.5 h-1.5 rounded-full", isUserOnline(sellers[listing.userId]?.lastActiveAt) ? "bg-green-500" : "bg-gray-300")} />
                           <span className="text-[10px] text-gray-400">{getOnlineStatus(sellers[listing.userId]?.lastActiveAt)}</span>

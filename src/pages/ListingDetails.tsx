@@ -443,8 +443,15 @@ export default function ListingDetails() {
                    listing.type === 'theme_plugin' ? <Package className="w-5 h-5 text-indigo-600" /> :
                    listing.type === 'mobile_app' ? <Smartphone className="w-5 h-5 text-indigo-600" /> :
                    listing.type === 'other_service' ? <Briefcase className="w-5 h-5 text-indigo-600" /> : <ExternalLink className="w-5 h-5 text-indigo-600" />}
-                  {listing.url}
-                  <ExternalLink className="w-4 h-4 text-gray-300" />
+                  <a
+                    href={listing.url.startsWith('http') ? listing.url : `https://${listing.url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:text-indigo-800 hover:underline transition-colors font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    {listing.url}
+                    <ExternalLink className="w-4 h-4 text-indigo-400 inline shrink-0" />
+                  </a>
                 </div>
               )}
               {(listing.type === 'group_buy' || listing.type === 'premium_tool') && (
@@ -541,7 +548,11 @@ export default function ListingDetails() {
                 About This Opportunity
               </h2>
               <div className="markdown-body max-w-none text-gray-600 leading-relaxed">
-                <ReactMarkdown>{listing.description}</ReactMarkdown>
+                {/<[a-z][\s\S]*>/i.test(listing.description) ? (
+                  <div dangerouslySetInnerHTML={{ __html: listing.description }} />
+                ) : (
+                  <ReactMarkdown>{listing.description}</ReactMarkdown>
+                )}
               </div>
             </div>
 

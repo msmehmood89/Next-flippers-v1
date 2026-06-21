@@ -994,7 +994,19 @@ export default function AdminDashboard() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="text-sm font-bold text-gray-900 truncate" title={listing.title}>{listing.title}</div>
-                              <div className="text-[10px] text-gray-400 font-bold truncate" title={listing.url}>{listing.url}</div>
+                              {listing.url ? (
+                                <a
+                                  href={listing.url.startsWith('http') ? listing.url : `https://${listing.url}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline font-bold truncate block cursor-pointer"
+                                  title={listing.url}
+                                >
+                                  {listing.url}
+                                </a>
+                              ) : (
+                                <div className="text-[10px] text-gray-400 font-bold">No URL</div>
+                              )}
                             </div>
                           </div>
                         </td>

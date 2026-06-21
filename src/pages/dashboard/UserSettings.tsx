@@ -14,11 +14,15 @@ import {
 import PhoneInput from 'react-phone-input-2';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import { cn, resizeImage } from '../../lib/utils';
+import ImageEditorModal from '../../components/ImageEditorModal';
 
 export default function UserSettings() {
   const { profile, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorImageSrc, setEditorImageSrc] = useState('');
+  const [editorTarget, setEditorTarget] = useState<'profile' | 'banner'>('profile');
   const [formData, setFormData] = useState({
     name: profile?.name || '',
     whatsappNumber: profile?.whatsappNumber || '',
@@ -112,78 +116,92 @@ export default function UserSettings() {
     });
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Please upload an image file.');
       return;
     }
 
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      alert('File size must be under 2MB.');
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be under 5MB.');
       return;
     }
 
-    setUploading(true);
-    try {
-      // Direct high-efficiency local base64 compression bypass (instant and fully reliable across sandboxes)
-      const finalPhotoURL = await resizeImage(file, 200, 200, 0.85);
-
-      await updateDoc(doc(db, 'users', user.uid), {
-        photoURL: finalPhotoURL
-      });
-      
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('Failed to upload image. Please check the file and try again.');
-    } finally {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''; // Reset input to allow selecting same file again if needed
-      }
-      setUploading(false);
-    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditorImageSrc(reader.result as string);
+      setEditorTarget('profile');
+      setEditorOpen(true);
+    };
+    reader.onerror = () => {
+      alert('Failed to read image file.');
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Please upload an image file.');
       return;
     }
 
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      alert('File size must be under 2MB.');
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be under 5MB.');
       return;
     }
 
-    setUploadingBanner(true);
-    try {
-      const finalBannerURL = await resizeImage(file, 800, 266, 0.85);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditorImageSrc(reader.result as string);
+      setEditorTarget('banner');
+      setEditorOpen(true);
+    };
+    reader.onerror = () => {
+      alert('Failed to read banner file.');
+    };
+    reader.readAsDataURL(file);
+  };
 
-      await updateDoc(doc(db, 'users', user.uid), {
-        bannerURL: finalBannerURL
-      });
-      
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (error) {
-      console.error('Error uploading banner:', error);
-      alert('Failed to upload banner. Please check the file and try again.');
-    } finally {
-      if (bannerInputRef.current) {
-        bannerInputRef.current.value = ''; // Reset input to allow selecting same file again if needed
+  const handleEditorSave = async (editedBase64: string) => {
+    if (!user) return;
+    setSuccess(false);
+
+    if (editorTarget === 'profile') {
+      setUploading(true);
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          photoURL: editedBase64
+        });
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      } catch (error) {
+        console.error('Error uploading photo:', error);
+        alert('Failed to save profile picture.');
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
-      setUploadingBanner(false);
+    } else {
+      setUploadingBanner(true);
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          bannerURL: editedBase64
+        });
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      } catch (error) {
+        console.error('Error uploading banner:', error);
+        alert('Failed to save banner.');
+      } finally {
+        setUploadingBanner(false);
+        if (bannerInputRef.current) bannerInputRef.current.value = '';
+      }
     }
   };
 
@@ -637,6 +655,15 @@ export default function UserSettings() {
           </div>
         )}
       </AnimatePresence>
+
+      <ImageEditorModal
+        isOpen={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        imageUrl={editorImageSrc}
+        title={editorTarget === 'profile' ? "Crop Profile Picture" : "Crop Profile Banner"}
+        aspectRatio={editorTarget === 'profile' ? '1:1' : '16:9'}
+        onSave={handleEditorSave}
+      />
     </div>
   );
 }

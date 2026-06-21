@@ -129,7 +129,18 @@ export default function MyListings() {
                         <div>
                           <div className="font-bold text-gray-900 line-clamp-1">{listing.title}</div>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <span className="text-xs text-gray-400 font-medium">{listing.url}</span>
+                            {listing.url ? (
+                              <a
+                                href={listing.url.startsWith('http') ? listing.url : `https://${listing.url}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-indigo-500 hover:text-indigo-700 hover:underline font-bold cursor-pointer"
+                              >
+                                {listing.url}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-gray-400 font-medium">No URL</span>
+                            )}
                             <span className="text-[9px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-extrabold uppercase tracking-widest">
                               {listing.salesType === 'single' ? 'Single sale' :
                                listing.salesType === 'limited' ? `Qty: ${listing.quantity} left` : 'Unlimited'}

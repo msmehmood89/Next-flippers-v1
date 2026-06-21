@@ -8,11 +8,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Briefcase, DollarSign, Clock, Layout, 
   FileText, CheckCircle2, ArrowRight, Image as ImageIcon, 
-  X, PlusCircle, AlertCircle, Info,
-  Bold, Italic, Underline, List, ListOrdered, Quote, Minus, Link as LinkIcon, Palette, Undo, Type
+  X, PlusCircle, AlertCircle, Info, Sliders,
+  Bold, Italic, Underline, List, ListOrdered, Quote, Minus, Link as LinkIcon, Palette, Undo, Type, Sparkles
 } from 'lucide-react';
 import { cn, handleFirestoreError, OperationType, resizeImage, convertHtmlToMarkdown } from '../../lib/utils';
 import ReactMarkdown from 'react-markdown';
+import ImageEditorModal from '../../components/ImageEditorModal';
+import AIDescriptionModal from '../../components/AIDescriptionModal';
 
 const GIG_CATEGORIES = [
   'Web Development',
@@ -37,9 +39,13 @@ export default function CreateGig() {
   const [fetching, setFetching] = useState(!!id);
   const [showSuccess, setShowSuccess] = useState(false);
   const [originalGigData, setOriginalGigData] = useState<Gig | null>(null);
-  const [descriptionTab, setDescriptionTab] = useState<'edit' | 'preview'>('edit');
+  const [descriptionTab, setDescriptionTab] = useState<'edit' | 'html' | 'preview'>('edit');
   const [showColors, setShowColors] = useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorImageSrc, setEditorImageSrc] = useState('');
+  const [editorTargetIndex, setEditorTargetIndex] = useState<number | null>(null);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   const insertFormat = (before: string, after: string = '') => {
     const textarea = textareaRef.current;
@@ -180,16 +186,38 @@ export default function CreateGig() {
     }
   };
 
-  const handleAddImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && formData.images.length < 5) {
-      try {
-        const resizedBase64 = await resizeImage(file);
-        setFormData(prev => ({ ...prev, images: [...prev.images, resizedBase64] }));
-      } catch (error) {
-        console.error('Error resizing image:', error);
-        alert('Failed to process image. Please try another one.');
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file.');
+        return;
       }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setEditorImageSrc(reader.result as string);
+        setEditorTargetIndex(null); // adding new
+        setEditorOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleEditExistingImage = (index: number) => {
+    setEditorImageSrc(formData.images[index]);
+    setEditorTargetIndex(index);
+    setEditorOpen(true);
+  };
+
+  const handleEditorSave = (editedBase64: string) => {
+    if (editorTargetIndex !== null) {
+      setFormData(prev => {
+        const updated = [...prev.images];
+        updated[editorTargetIndex] = editedBase64;
+        return { ...prev, images: updated };
+      });
+    } else {
+      setFormData(prev => ({ ...prev, images: [...prev.images, editedBase64] }));
     }
   };
 
@@ -327,7 +355,16 @@ export default function CreateGig() {
               <FileText className="w-5 h-5 text-indigo-600" />
               Service Description
             </h2>
-            <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100/60 text-indigo-600 border border-indigo-100 text-xs font-extrabold rounded-xl transition-all shadow-sm"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Draft with AI</span>
+              </button>
+              <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
               <button
                 type="button"
                 onClick={() => setDescriptionTab('edit')}
@@ -337,6 +374,16 @@ export default function CreateGig() {
                 )}
               >
                 ✏️ Edit & Format
+              </button>
+              <button
+                type="button"
+                onClick={() => setDescriptionTab('html')}
+                className={cn(
+                  "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                  descriptionTab === 'html' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                )}
+              >
+                💻 HTML Editor
               </button>
               <button
                 type="button"
@@ -350,6 +397,7 @@ export default function CreateGig() {
               </button>
             </div>
           </div>
+        </div>
 
           {descriptionTab === 'edit' ? (
             <div className="space-y-3">
@@ -511,12 +559,38 @@ export default function CreateGig() {
                 <span>Supports full Markdown and safe HTML.</span>
               </div>
             </div>
+          ) : descriptionTab === 'html' ? (
+            <div className="space-y-3">
+              <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex gap-3 text-indigo-800 text-xs leading-relaxed font-medium">
+                <span className="text-sm">💻</span>
+                <div>
+                  <div className="font-bold mb-0.5 text-indigo-950">Raw HTML Mode Active</div>
+                  Write or paste raw HTML directly. You can use standard styling tags like <code className="bg-indigo-100 px-1 rounded">&lt;b&gt;</code>, <code className="bg-indigo-100 px-1 rounded">&lt;h1&gt;</code>, <code className="bg-indigo-100 px-1 rounded">&lt;span style="color: red"&gt;</code>, list items, emojis, and custom typography colors.
+                </div>
+              </div>
+              <textarea
+                required
+                rows={10}
+                className="w-full px-5 py-4 bg-gray-900 border border-gray-800 rounded-2xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none shadow-inner font-mono text-indigo-300 text-xs leading-relaxed"
+                placeholder="<h1>Custom Title</h1>&#10;<p style=&quot;color: #3b82f6; font-weight: bold;&quot;&gt;This text will show up with professional styling and color!&lt;/p&gt;&#10;&lt;ul&gt;&#10;  &lt;li&gt;First Point&lt;/li&gt;&#10;  &lt;li&gt;Second Point&lt;/li&gt;&#10;&lt;/ul&gt;"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+              <div className="flex justify-between items-center text-[10px] text-gray-400 font-bold px-1 uppercase tracking-wider">
+                <span>Direct HTML Code Input</span>
+                <span>Fully Compatible with Rich Clipboard formatting</span>
+              </div>
+            </div>
           ) : (
             <div className="bg-gray-50/50 rounded-2xl border border-gray-100 p-6 min-h-[250px] max-h-[500px] overflow-y-auto block">
               {formData.description ? (
-                <div className="markdown-body">
-                  <ReactMarkdown>{formData.description}</ReactMarkdown>
-                </div>
+                /<[a-z][\s\S]*>/i.test(formData.description) ? (
+                  <div className="markdown-body" dangerouslySetInnerHTML={{ __html: formData.description }} />
+                ) : (
+                  <div className="markdown-body">
+                    <ReactMarkdown>{formData.description}</ReactMarkdown>
+                  </div>
+                )
               ) : (
                 <div className="text-center py-12 text-gray-400 font-medium text-sm">
                   No description provided yet. Go to Edit view and write something!
@@ -543,11 +617,20 @@ export default function CreateGig() {
             {formData.images.map((img, i) => (
               <div key={i} className="aspect-square bg-gray-50 rounded-2xl relative overflow-hidden group border border-gray-100">
                 <img src={img} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleEditExistingImage(i)}
+                    className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-lg flex items-center justify-center"
+                    title="Crop & Edit Image"
+                  >
+                    <Sliders className="w-4 h-4" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, images: formData.images.filter((_, idx) => idx !== i) })}
-                    className="p-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors shadow-lg"
+                    className="p-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors shadow-lg flex items-center justify-center"
+                    title="Delete Image"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -626,6 +709,28 @@ export default function CreateGig() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ImageEditorModal
+        isOpen={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        imageUrl={editorImageSrc}
+        title={editorTargetIndex !== null ? "Edit Portfolio Image" : "Crop & Edit Portfolio Image"}
+        aspectRatio="4:3"
+        onSave={handleEditorSave}
+      />
+
+      <AIDescriptionModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        formData={{
+          title: formData.title,
+          type: 'other_service',
+          category: formData.category,
+          askingPrice: formData.price,
+          platform: 'Freelance Service',
+        }}
+        onApply={(text) => setFormData(prev => ({ ...prev, description: text }))}
+      />
     </div>
   );
 }

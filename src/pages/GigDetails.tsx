@@ -414,7 +414,11 @@ export default function GigDetails() {
             <div className="bg-white rounded-[2.5rem] p-10 shadow-xl shadow-indigo-100/20 border border-gray-100">
               <h2 className="text-2xl font-black text-gray-900 mb-6">About This Gig</h2>
               <div className="markdown-body text-gray-600 leading-relaxed font-medium">
-                <ReactMarkdown>{gig.description}</ReactMarkdown>
+                {/<[a-z][\s\S]*>/i.test(gig.description) ? (
+                  <div dangerouslySetInnerHTML={{ __html: gig.description }} />
+                ) : (
+                  <ReactMarkdown>{gig.description}</ReactMarkdown>
+                )}
               </div>
             </div>
           </div>

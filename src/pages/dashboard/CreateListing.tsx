@@ -9,12 +9,11 @@ import {
   Globe, DollarSign, TrendingUp, Users, Calendar, 
   Layout, FileText, CheckCircle2, ArrowRight, Save, Image as ImageIcon, X, PlusCircle, AlertCircle, Briefcase, Gamepad2, MessageSquare, Sliders,
   Instagram, Facebook, Twitter, AtSign, Package, Smartphone, Code,
-  Bold, Italic, Underline, List, ListOrdered, Quote, Minus, Link as LinkIcon, Palette, Undo, Type, Sparkles
+  Bold, Italic, Underline, List, ListOrdered, Quote, Minus, Link as LinkIcon, Palette, Undo, Type
 } from 'lucide-react';
 import { cn, handleFirestoreError, OperationType, resizeImage, convertHtmlToMarkdown } from '../../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import ImageEditorModal from '../../components/ImageEditorModal';
-import AIDescriptionModal from '../../components/AIDescriptionModal';
 
 const LISTING_TYPES = [
   { id: 'website', name: 'Website', icon: Globe, description: 'Sell your SaaS, E-commerce, or Content site' },
@@ -74,7 +73,6 @@ export default function CreateListing() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorImageSrc, setEditorImageSrc] = useState('');
   const [editorTargetIndex, setEditorTargetIndex] = useState<number | null>(null);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   const insertFormat = (before: string, after: string = '') => {
     const textarea = textareaRef.current;
@@ -801,16 +799,7 @@ export default function CreateListing() {
               <FileText className="w-5 h-5 text-indigo-600" />
               About This Opportunity / Description
             </h2>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setAiModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100/60 text-indigo-600 border border-indigo-100 text-xs font-extrabold rounded-xl transition-all shadow-sm"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Draft with AI</span>
-              </button>
-              <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
+            <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
               <button
                 type="button"
                 onClick={() => setDescriptionTab('edit')}
@@ -843,7 +832,6 @@ export default function CreateListing() {
               </button>
             </div>
           </div>
-        </div>
 
           {descriptionTab === 'edit' ? (
             <div className="space-y-3">
@@ -1213,13 +1201,6 @@ export default function CreateListing() {
         title={editorTargetIndex !== null ? "Edit Screenshot" : "Crop & Edit Screenshot"}
         aspectRatio="4:3"
         onSave={handleEditorSave}
-      />
-
-      <AIDescriptionModal
-        isOpen={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
-        formData={formData}
-        onApply={(text) => setFormData(prev => ({ ...prev, description: text }))}
       />
     </div>
   );

@@ -9,11 +9,9 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore with settings optimized for restricted network environments (like iFrames or corporate proxies)
 // We use force long polling to avoid WebSocket/gRPC-web connection issues.
+// Note: We omit custom host/ssl parameters when using a non-default/named database ID to allow the SDK to route requests correctly.
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-  // Using explicit host and SSL can sometimes bypass proxy sniffing issues
-  host: 'firestore.googleapis.com',
-  ssl: true,
 }, firebaseConfig.firestoreDatabaseId || '(default)');
 
 export const auth = getAuth(app);
@@ -35,9 +33,9 @@ async function verifyConnection() {
     await getDocFromServer(doc(db, '_health_check_', 'ping'));
     console.log("Firestore connection verified successfully.");
   } catch (error: any) {
-    // Treat 'not-found' as a successful network reach
-    if (error?.code === 'not-found') {
-       console.log("Firestore reachability confirmed (Document not found = backend reached).");
+    // Treat 'not-found' and 'permission-denied' as a successful network reach
+    if (error?.code === 'not-found' || error?.code === 'permission-denied') {
+       console.log("Firestore reachability confirmed (Backend reached with status:", error.code, ").");
        return;
     }
     
